@@ -1,0 +1,29 @@
+[package]
+name = "oxo"
+description = "A terminal UI for log aggregation and observability — k9s for your logs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "oxo"
+path = "src/main.rs"
+
+[features]
+default = ["loki"]
+loki = ["dep:oxo-loki"]
+
+[dependencies]
+oxo-core.workspace = true
+oxo-tui.workspace = true
+oxo-loki = { workspace = true, optional = true }
+tokio.workspace = true
+clap.workspace = true
+toml.workspace = true
+serde.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+directories.workspace = true

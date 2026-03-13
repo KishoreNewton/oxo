@@ -1,0 +1,56 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/oxo-tui/oxo"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP / WebSocket
+reqwest = { version = "0.12", features = ["json", "gzip"] }
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+url = "2"
+
+# TUI
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+tui-input = "0.11"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Internal crates
+oxo-core = { path = "crates/oxo-core" }
+oxo-loki = { path = "crates/oxo-loki" }
+oxo-tui = { path = "crates/oxo-tui" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

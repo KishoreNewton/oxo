@@ -1,0 +1,47 @@
+# oxo default configuration
+#
+# Copy this file to ~/.config/oxo/config.toml and customize it.
+# CLI flags override values from this file.
+
+# Which backend to use. Currently supported: "loki"
+backend = "loki"
+
+[connection]
+# Backend URL
+url = "http://localhost:3100"
+
+# Authentication (uncomment one):
+
+# Basic auth:
+# [connection.auth]
+# type = "basic"
+# username = "admin"
+# password = "secret"
+
+# Bearer token:
+# [connection.auth]
+# type = "bearer"
+# token = "your-token-here"
+
+# Backend-specific extra settings:
+# [connection.extra]
+# org_id = "my-tenant"    # Loki multi-tenant org ID
+
+[display]
+# Maximum number of log lines to keep in the buffer.
+max_buffer_size = 50000
+
+# Enable mouse support.
+mouse = true
+
+# Tick rate in milliseconds (controls sparkline update frequency).
+tick_rate_ms = 250
+
+# Render rate in milliseconds.
+render_rate_ms = 50
+
+# Show timestamps in log lines.
+show_timestamps = true
+
+# Wrap long lines (false = truncate).
+line_wrap = false
