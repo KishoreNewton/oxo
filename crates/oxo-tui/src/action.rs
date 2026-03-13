@@ -3,10 +3,6 @@
 //! Components communicate with each other and with the [`App`](crate::app::App)
 //! by emitting [`Action`] values. The main loop dispatches these actions,
 //! updating state and triggering re-renders as needed.
-//!
-//! This pattern (sometimes called "The Elm Architecture" or "unidirectional
-//! data flow") keeps components decoupled: a component never mutates another
-//! component's state directly.
 
 use oxo_core::BackendEvent;
 
@@ -45,11 +41,30 @@ pub enum Action {
     /// Toggle the filter side panel.
     ToggleFilterPanel,
 
+    // ── Search ──────────────────────────────────────────────────────
+    /// Enter search mode (open search input).
+    EnterSearchMode,
+
+    /// Exit search mode.
+    ExitSearchMode,
+
+    /// Set the active search term and highlight matches.
+    SearchSubmit(String),
+
+    /// Jump to the next search match.
+    SearchNext,
+
+    /// Jump to the previous search match.
+    SearchPrev,
+
+    /// Clear the search term and highlights.
+    SearchClear,
+
     // ── Query / filter ──────────────────────────────────────────────
     /// Submit a query string to the backend.
     SubmitQuery(String),
 
-    /// Apply a label filter.
+    /// Toggle a label filter on/off and rebuild the query.
     SetFilter { label: String, value: String },
 
     /// Remove all active label filters.
@@ -82,6 +97,33 @@ pub enum Action {
 
     /// Copy the currently selected log line to clipboard.
     CopyLine,
+
+    /// Select a log line (by index in visible area).
+    SelectLine(usize),
+
+    /// Toggle the detail/inspect panel for the selected log line.
+    ToggleDetail,
+
+    // ── Mouse ───────────────────────────────────────────────────────
+    /// Mouse scroll up.
+    MouseScrollUp(u16, u16),
+
+    /// Mouse scroll down.
+    MouseScrollDown(u16, u16),
+
+    /// Mouse click at a position.
+    MouseClick(u16, u16),
+
+    // ── Notifications ───────────────────────────────────────────────
+    /// Show a notification message in the status bar (auto-clears).
+    Notify(String),
+
+    /// Show an error notification.
+    NotifyError(String),
+
+    // ── Export ───────────────────────────────────────────────────────
+    /// Export visible logs to a file.
+    ExportLogs,
 
     // ── Backend events ──────────────────────────────────────────────
     /// An event received from the active backend.

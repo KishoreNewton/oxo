@@ -1,15 +1,18 @@
 //! The main log viewer component.
 //!
-//! Displays a scrollable list of log entries with timestamp coloring,
-//! log-level highlighting, and auto-scroll (tail mode). When the user
-//! scrolls up, tail mode pauses and a "N new lines" indicator appears.
+//! Displays a scrollable list of log entries with:
+//! - Timestamp coloring and log-level highlighting
+//! - Auto-scroll (tail mode) with "N new lines" indicator
+//! - Live search with match highlighting and n/N navigation
+//! - Line selection for detail/inspect view
+//! - Mouse scroll support
 
 use std::collections::VecDeque;
 
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
@@ -21,10 +24,7 @@ use crate::theme::Theme;
 
 /// Log viewer component state.
 pub struct LogViewer {
-    /// Reference to the shared log buffer (read-only view).
-    ///
-    /// The `App` owns the actual buffer; the viewer receives a snapshot
-    /// via [`update_entries`](LogViewer::update_entries).
+    /// Snapshot of the log buffer entries.
     entries: Vec<LogEntry>,
 
     /// Current scroll offset (0 = bottom / most recent).
@@ -45,6 +45,18 @@ pub struct LogViewer {
     /// Height of the viewport (set during render).
     viewport_height: usize,
 
+    /// Currently selected line index (relative to visible entries).
+    selected_line: Option<usize>,
+
+    /// Active search term.
+    search_term: Option<String>,
+
+    /// Indices of entries matching the search term.
+    search_matches: Vec<usize>,
+
+    /// Current match index within search_matches.
+    search_match_cursor: usize,
+
     /// The color theme.
     theme: Theme,
 }
@@ -60,27 +72,107 @@ impl LogViewer {
             show_timestamps: true,
             line_wrap: false,
             viewport_height: 0,
+            selected_line: None,
+            search_term: None,
+            search_matches: Vec::new(),
+            search_match_cursor: 0,
             theme,
         }
     }
 
     /// Update the entries displayed by this viewer.
-    ///
-    /// Called by the `App` whenever the log buffer changes.
     pub fn update_entries(&mut self, buffer: &VecDeque<LogEntry>) {
         let previous_len = self.entries.len();
         self.entries = buffer.iter().cloned().collect();
 
         if self.tail_mode {
-            // Stay at the bottom.
             self.scroll_offset = 0;
         } else {
-            // Track how many new entries arrived while scrolled away.
             let new_count = self.entries.len().saturating_sub(previous_len);
             self.new_entries_count += new_count;
-            // Adjust scroll offset to keep the view stable.
             self.scroll_offset += new_count;
         }
+
+        // Rebuild search matches if there's an active search.
+        if self.search_term.is_some() {
+            self.rebuild_search_matches();
+        }
+    }
+
+    /// Set the viewport height (called by App after layout is computed).
+    pub fn set_viewport_height(&mut self, height: usize) {
+        self.viewport_height = height;
+    }
+
+    /// Get the currently selected log entry (for detail view / copy).
+    pub fn selected_entry(&self) -> Option<&LogEntry> {
+        let selected = self.selected_line?;
+        let (start, _end) = self.visible_range();
+        let idx = start + selected;
+        self.entries.get(idx)
+    }
+
+    /// Get the number of search matches.
+    pub fn search_match_count(&self) -> usize {
+        self.search_matches.len()
+    }
+
+    /// Get the current search match cursor (1-based for display).
+    pub fn search_match_position(&self) -> usize {
+        if self.search_matches.is_empty() {
+            0
+        } else {
+            self.search_match_cursor + 1
+        }
+    }
+
+    /// Get the active search term.
+    pub fn search_term(&self) -> Option<&str> {
+        self.search_term.as_deref()
+    }
+
+    /// Set the search term and rebuild matches.
+    pub fn set_search(&mut self, term: String) {
+        if term.is_empty() {
+            self.clear_search();
+            return;
+        }
+        self.search_term = Some(term);
+        self.rebuild_search_matches();
+        self.search_match_cursor = 0;
+        // Jump to first match if any.
+        if !self.search_matches.is_empty() {
+            self.scroll_to_match(0);
+        }
+    }
+
+    /// Clear search highlighting.
+    pub fn clear_search(&mut self) {
+        self.search_term = None;
+        self.search_matches.clear();
+        self.search_match_cursor = 0;
+    }
+
+    /// Jump to the next search match.
+    pub fn search_next(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+        self.search_match_cursor = (self.search_match_cursor + 1) % self.search_matches.len();
+        self.scroll_to_match(self.search_match_cursor);
+    }
+
+    /// Jump to the previous search match.
+    pub fn search_prev(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+        if self.search_match_cursor == 0 {
+            self.search_match_cursor = self.search_matches.len() - 1;
+        } else {
+            self.search_match_cursor -= 1;
+        }
+        self.scroll_to_match(self.search_match_cursor);
     }
 
     /// Scroll up by N lines.
@@ -115,9 +207,63 @@ impl LogViewer {
         self.new_entries_count = 0;
     }
 
-    /// Format a single log entry as a styled [`Line`].
-    fn format_entry(&self, entry: &LogEntry) -> Line<'_> {
+    /// Compute the visible (start, end) range of entries.
+    fn visible_range(&self) -> (usize, usize) {
+        let total = self.entries.len();
+        let start = if total > self.viewport_height + self.scroll_offset {
+            total - self.viewport_height - self.scroll_offset
+        } else {
+            0
+        };
+        let end = total.saturating_sub(self.scroll_offset);
+        (start, end)
+    }
+
+    /// Rebuild the list of entry indices matching the search term.
+    fn rebuild_search_matches(&mut self) {
+        self.search_matches.clear();
+        if let Some(ref term) = self.search_term {
+            let term_lower = term.to_lowercase();
+            for (i, entry) in self.entries.iter().enumerate() {
+                if entry.line.to_lowercase().contains(&term_lower) {
+                    self.search_matches.push(i);
+                }
+            }
+        }
+    }
+
+    /// Scroll so that the match at the given index is visible.
+    fn scroll_to_match(&mut self, match_idx: usize) {
+        if let Some(&entry_idx) = self.search_matches.get(match_idx) {
+            let total = self.entries.len();
+            // We want entry_idx to be within the visible window.
+            // visible range: [total - viewport - offset, total - offset)
+            // So offset = total - entry_idx - viewport/2 (center it).
+            let half = self.viewport_height / 2;
+            if total > self.viewport_height {
+                let desired_end = (entry_idx + half + 1).min(total);
+                self.scroll_offset = total - desired_end;
+            }
+            self.tail_mode = false;
+            // Select the line within the visible area.
+            let (start, _end) = self.visible_range();
+            self.selected_line = Some(entry_idx.saturating_sub(start));
+        }
+    }
+
+    /// Format a single log entry as a styled [`Line`], with search highlighting.
+    fn format_entry(&self, entry: &LogEntry, is_selected: bool) -> Line<'_> {
         let mut spans = Vec::new();
+
+        // Selection indicator.
+        if is_selected {
+            spans.push(Span::styled(
+                "► ",
+                Style::default()
+                    .fg(self.theme.accent)
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
 
         // Timestamp.
         if self.show_timestamps {
@@ -133,8 +279,12 @@ impl LogViewer {
             spans.push(Span::raw(" "));
         }
 
-        // Log line.
-        spans.push(Span::styled(entry.line.clone(), Style::default()));
+        // Log line — with search term highlighting.
+        if let Some(ref term) = self.search_term {
+            spans.extend(highlight_matches(&entry.line, term, &self.theme));
+        } else {
+            spans.push(Span::raw(entry.line.clone()));
+        }
 
         Line::from(spans)
     }
@@ -144,19 +294,39 @@ impl Component for LogViewer {
     fn handle_key(&mut self, key: KeyEvent) -> Option<Action> {
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => {
-                self.scroll_down(1);
+                if let Some(sel) = self.selected_line {
+                    let (start, end) = self.visible_range();
+                    let max = (end - start).saturating_sub(1);
+                    if sel < max {
+                        self.selected_line = Some(sel + 1);
+                    } else {
+                        self.scroll_down(1);
+                    }
+                } else {
+                    self.scroll_down(1);
+                }
                 Some(Action::Noop)
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                self.scroll_up(1);
+                if let Some(sel) = self.selected_line {
+                    if sel > 0 {
+                        self.selected_line = Some(sel - 1);
+                    } else {
+                        self.scroll_up(1);
+                    }
+                } else {
+                    self.scroll_up(1);
+                }
                 Some(Action::Noop)
             }
             KeyCode::Char('g') | KeyCode::Home => {
                 self.scroll_to_top();
+                self.selected_line = Some(0);
                 Some(Action::Noop)
             }
             KeyCode::Char('G') | KeyCode::End => {
                 self.scroll_to_bottom();
+                self.selected_line = None;
                 Some(Action::Noop)
             }
             KeyCode::PageDown => {
@@ -167,6 +337,20 @@ impl Component for LogViewer {
                 self.scroll_up(self.viewport_height.saturating_sub(2));
                 Some(Action::Noop)
             }
+            // Toggle selection mode.
+            KeyCode::Char(' ') => {
+                if self.selected_line.is_some() {
+                    self.selected_line = None;
+                } else {
+                    self.selected_line = Some(0);
+                }
+                Some(Action::Noop)
+            }
+            // Open detail view for selected line.
+            KeyCode::Enter => Some(Action::ToggleDetail),
+            // Search navigation.
+            KeyCode::Char('n') => Some(Action::SearchNext),
+            KeyCode::Char('N') => Some(Action::SearchPrev),
             _ => None,
         }
     }
@@ -181,23 +365,48 @@ impl Component for LogViewer {
                 self.show_timestamps = !self.show_timestamps;
                 None
             }
+            Action::SearchSubmit(term) => {
+                self.set_search(term.clone());
+                None
+            }
+            Action::SearchNext => {
+                self.search_next();
+                None
+            }
+            Action::SearchPrev => {
+                self.search_prev();
+                None
+            }
+            Action::SearchClear => {
+                self.clear_search();
+                None
+            }
             _ => None,
         }
     }
 
     fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
-        // Record viewport height for scroll calculations.
-        // We subtract 2 for the block borders.
         let inner_height = area.height.saturating_sub(2) as usize;
 
-        // Build the title with tail/scroll indicator.
-        let title = if self.tail_mode {
-            " Logs (TAIL) ".to_string()
+        // Build the title with mode indicators.
+        let mut title_parts = vec![" Logs".to_string()];
+        if self.tail_mode {
+            title_parts.push("(TAIL)".to_string());
         } else if self.new_entries_count > 0 {
-            format!(" Logs (+{} new) ", self.new_entries_count)
-        } else {
-            " Logs ".to_string()
-        };
+            title_parts.push(format!("(+{} new)", self.new_entries_count));
+        }
+        if let Some(ref term) = self.search_term {
+            if self.search_matches.is_empty() {
+                title_parts.push(format!("[/{term}: no matches]"));
+            } else {
+                title_parts.push(format!(
+                    "[/{term}: {}/{}]",
+                    self.search_match_cursor + 1,
+                    self.search_matches.len()
+                ));
+            }
+        }
+        let title = format!("{} ", title_parts.join(" "));
 
         let border_style = if focused {
             self.theme.border_focused()
@@ -211,17 +420,15 @@ impl Component for LogViewer {
             .border_style(border_style);
 
         // Get the visible slice of entries.
-        let total = self.entries.len();
-        let start = if total > inner_height + self.scroll_offset {
-            total - inner_height - self.scroll_offset
-        } else {
-            0
-        };
-        let end = total.saturating_sub(self.scroll_offset);
+        let (start, end) = self.visible_range();
 
         let lines: Vec<Line> = self.entries[start..end]
             .iter()
-            .map(|entry| self.format_entry(entry))
+            .enumerate()
+            .map(|(i, entry)| {
+                let is_selected = self.selected_line == Some(i);
+                self.format_entry(entry, is_selected)
+            })
             .collect();
 
         let mut paragraph = Paragraph::new(lines).block(block);
@@ -231,18 +438,42 @@ impl Component for LogViewer {
 
         frame.render_widget(paragraph, area);
 
-        // SAFETY: We need to update viewport_height for scroll calculations,
-        // but render takes &self. The App updates this via a separate method
-        // or we accept the one-frame delay.
-        // In practice this is fine since the value stabilizes after the first render.
-        let _ = inner_height; // Used above; stored by App separately.
+        let _ = inner_height;
     }
 }
 
-// Allow the App to set viewport height after render.
-impl LogViewer {
-    /// Set the viewport height (called by App after layout is computed).
-    pub fn set_viewport_height(&mut self, height: usize) {
-        self.viewport_height = height;
+/// Split a string by a search term and return styled spans with highlights.
+fn highlight_matches<'a>(text: &str, term: &str, _theme: &Theme) -> Vec<Span<'a>> {
+    let mut spans = Vec::new();
+    let text_lower = text.to_lowercase();
+    let term_lower = term.to_lowercase();
+    let mut last_end = 0;
+
+    for (start, _) in text_lower.match_indices(&term_lower) {
+        // Text before the match.
+        if start > last_end {
+            spans.push(Span::raw(text[last_end..start].to_string()));
+        }
+        // The matched text (preserve original casing).
+        let matched = &text[start..start + term.len()];
+        spans.push(Span::styled(
+            matched.to_string(),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ));
+        last_end = start + term.len();
     }
+
+    // Remaining text after last match.
+    if last_end < text.len() {
+        spans.push(Span::raw(text[last_end..].to_string()));
+    }
+
+    if spans.is_empty() {
+        spans.push(Span::raw(text.to_string()));
+    }
+
+    spans
 }

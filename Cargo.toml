@@ -48,6 +48,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Internal crates
 oxo-core = { path = "crates/oxo-core" }
 oxo-loki = { path = "crates/oxo-loki" }
+oxo-demo = { path = "crates/oxo-demo" }
 oxo-tui = { path = "crates/oxo-tui" }
 
 [profile.release]

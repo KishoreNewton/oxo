@@ -14,13 +14,15 @@ pub enum InputMode {
     Normal,
     /// Query mode — typing in the query bar.
     Query,
+    /// Search mode — typing in the search bar.
+    Search,
     /// Filter mode — navigating the filter panel.
     Filter,
+    /// Detail mode — viewing a log entry's details.
+    Detail,
 }
 
 /// Map a key event to an action based on the current input mode.
-///
-/// Returns [`Action::Noop`] if the key has no binding in the current mode.
 pub fn handle_key(mode: InputMode, key: KeyEvent) -> Action {
     // Global bindings (work in any mode).
     if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -33,7 +35,9 @@ pub fn handle_key(mode: InputMode, key: KeyEvent) -> Action {
     match mode {
         InputMode::Normal => handle_normal_mode(key),
         InputMode::Query => handle_query_mode(key),
+        InputMode::Search => handle_search_mode(key),
         InputMode::Filter => handle_filter_mode(key),
+        InputMode::Detail => handle_detail_mode(key),
     }
 }
 
@@ -59,8 +63,13 @@ fn handle_normal_mode(key: KeyEvent) -> Action {
         KeyCode::Home => Action::ScrollToTop,
         KeyCode::End => Action::ScrollToBottom,
 
+        // Search
+        KeyCode::Char('/') => Action::EnterSearchMode,
+        KeyCode::Char('n') => Action::SearchNext,
+        KeyCode::Char('N') => Action::SearchPrev,
+
         // Enter query mode
-        KeyCode::Char('/') | KeyCode::Char(':') => Action::EnterQueryMode,
+        KeyCode::Char(':') => Action::EnterQueryMode,
 
         // Focus cycling
         KeyCode::Tab => Action::FocusNext,
@@ -72,8 +81,14 @@ fn handle_normal_mode(key: KeyEvent) -> Action {
         KeyCode::Char('w') => Action::ToggleLineWrap,
         KeyCode::Char('t') => Action::ToggleTimestamps,
 
+        // Detail view
+        KeyCode::Enter => Action::ToggleDetail,
+
         // Copy current line
         KeyCode::Char('y') => Action::CopyLine,
+
+        // Export logs
+        KeyCode::Char('e') => Action::ExportLogs,
 
         _ => Action::Noop,
     }
@@ -82,9 +97,15 @@ fn handle_normal_mode(key: KeyEvent) -> Action {
 /// Key bindings for query input mode.
 fn handle_query_mode(key: KeyEvent) -> Action {
     match key.code {
-        // Exit query mode without submitting.
         KeyCode::Esc => Action::ExitQueryMode,
-        // All other keys are handled by the query bar component directly.
+        _ => Action::Noop,
+    }
+}
+
+/// Key bindings for search input mode.
+fn handle_search_mode(key: KeyEvent) -> Action {
+    match key.code {
+        KeyCode::Esc => Action::ExitSearchMode,
         _ => Action::Noop,
     }
 }
@@ -93,6 +114,16 @@ fn handle_query_mode(key: KeyEvent) -> Action {
 fn handle_filter_mode(key: KeyEvent) -> Action {
     match key.code {
         KeyCode::Esc => Action::ToggleFilterPanel,
+        KeyCode::Char('j') | KeyCode::Down => Action::ScrollDown(1),
+        KeyCode::Char('k') | KeyCode::Up => Action::ScrollUp(1),
+        _ => Action::Noop,
+    }
+}
+
+/// Key bindings for detail panel mode.
+fn handle_detail_mode(key: KeyEvent) -> Action {
+    match key.code {
+        KeyCode::Esc | KeyCode::Enter => Action::ToggleDetail,
         KeyCode::Char('j') | KeyCode::Down => Action::ScrollDown(1),
         KeyCode::Char('k') | KeyCode::Up => Action::ScrollUp(1),
         _ => Action::Noop,

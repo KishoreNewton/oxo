@@ -38,8 +38,8 @@ use oxo_core::config::{AppConfig, AuthConfig};
                   real-time tailing, filtering, and visualization directly in your terminal."
 )]
 struct Cli {
-    /// Backend to use (e.g. "loki", "elasticsearch").
-    #[arg(short, long, default_value = "loki")]
+    /// Backend to use: "demo", "loki", etc. Demo generates fake logs.
+    #[arg(short, long, default_value = "demo")]
     backend: String,
 
     /// Backend URL (e.g. "http://localhost:3100").
@@ -158,18 +158,18 @@ fn load_config(cli: &Cli) -> Result<AppConfig> {
 /// Create a backend instance based on the configuration.
 fn create_backend(config: &AppConfig) -> Result<Box<dyn LogBackend>> {
     match config.backend.as_str() {
+        #[cfg(feature = "demo")]
+        "demo" => {
+            let backend = oxo_demo::DemoBackend::from_config(&config.connection)?;
+            Ok(Box::new(backend))
+        }
+
         #[cfg(feature = "loki")]
         "loki" => {
             let backend = oxo_loki::LokiBackend::from_config(&config.connection)?;
             Ok(Box::new(backend))
         }
 
-        // Future backends:
-        // #[cfg(feature = "elasticsearch")]
-        // "elasticsearch" => { ... }
-        //
-        // #[cfg(feature = "cloudwatch")]
-        // "cloudwatch" => { ... }
         other => anyhow::bail!(
             "unknown backend: \"{other}\". Available backends: {}",
             available_backends().join(", ")
@@ -180,6 +180,8 @@ fn create_backend(config: &AppConfig) -> Result<Box<dyn LogBackend>> {
 /// List available backends based on compiled features.
 fn available_backends() -> Vec<&'static str> {
     vec![
+        #[cfg(feature = "demo")]
+        "demo",
         #[cfg(feature = "loki")]
         "loki",
     ]

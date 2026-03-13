@@ -14,14 +14,11 @@ use crate::theme::Theme;
 
 /// Help overlay component.
 pub struct HelpOverlay {
-    /// Whether the help overlay is visible.
     visible: bool,
-    /// Color theme.
     theme: Theme,
 }
 
 impl HelpOverlay {
-    /// Create a new help overlay (hidden by default).
     pub fn new(theme: Theme) -> Self {
         Self {
             visible: false,
@@ -29,12 +26,10 @@ impl HelpOverlay {
         }
     }
 
-    /// Whether the overlay is visible.
     pub fn is_visible(&self) -> bool {
         self.visible
     }
 
-    /// Toggle visibility.
     pub fn toggle(&mut self) {
         self.visible = !self.visible;
     }
@@ -53,16 +48,14 @@ impl Component for HelpOverlay {
             return;
         }
 
-        // Center a popup in the terminal.
-        let popup_width = 50u16.min(area.width.saturating_sub(4));
-        let popup_height = 22u16.min(area.height.saturating_sub(4));
+        let popup_width = 55u16.min(area.width.saturating_sub(4));
+        let popup_height = 30u16.min(area.height.saturating_sub(4));
 
         let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
         let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
         let [vert_area] = vertical.areas(area);
         let [popup_area] = horizontal.areas(vert_area);
 
-        // Clear the area behind the popup.
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
@@ -71,32 +64,36 @@ impl Component for HelpOverlay {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(self.theme.accent));
 
+        let bold = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+
         let help_lines = vec![
-            Line::from(Span::styled(
-                "Navigation",
-                Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-            )),
+            Line::from(Span::styled("Navigation", bold)),
             Line::from(""),
-            Line::from("  j/↓         Scroll down"),
-            Line::from("  k/↑         Scroll up"),
-            Line::from("  g/Home      Jump to top"),
-            Line::from("  G/End       Jump to bottom"),
-            Line::from("  Ctrl+d/PgDn Page down"),
-            Line::from("  Ctrl+u/PgUp Page up"),
-            Line::from("  Tab         Cycle focus"),
+            Line::from("  j/↓           Scroll down"),
+            Line::from("  k/↑           Scroll up"),
+            Line::from("  g/Home        Jump to top"),
+            Line::from("  G/End         Jump to bottom (tail)"),
+            Line::from("  Ctrl+d/PgDn   Page down"),
+            Line::from("  Ctrl+u/PgUp   Page up"),
+            Line::from("  Tab/Shift+Tab Cycle focus"),
+            Line::from("  Space         Toggle line selection"),
             Line::from(""),
-            Line::from(Span::styled(
-                "Actions",
-                Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-            )),
+            Line::from(Span::styled("Search & Query", bold)),
             Line::from(""),
-            Line::from("  / or :      Enter query mode"),
-            Line::from("  f           Toggle filter panel"),
-            Line::from("  w           Toggle line wrap"),
-            Line::from("  t           Toggle timestamps"),
-            Line::from("  y           Copy current line"),
-            Line::from("  ?           Toggle this help"),
-            Line::from("  q/Ctrl+c    Quit"),
+            Line::from("  /             Search in logs"),
+            Line::from("  n/N           Next/prev search match"),
+            Line::from("  :             Enter query mode"),
+            Line::from(""),
+            Line::from(Span::styled("Actions", bold)),
+            Line::from(""),
+            Line::from("  Enter         Inspect selected log"),
+            Line::from("  f             Toggle filter panel"),
+            Line::from("  w             Toggle line wrap"),
+            Line::from("  t             Toggle timestamps"),
+            Line::from("  y             Copy selected line"),
+            Line::from("  e             Export logs to JSON"),
+            Line::from("  ?             Toggle this help"),
+            Line::from("  q/Ctrl+c      Quit"),
         ];
 
         let paragraph = Paragraph::new(help_lines)

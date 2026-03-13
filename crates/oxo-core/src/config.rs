@@ -26,7 +26,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            backend: "loki".to_string(),
+            backend: "demo".to_string(),
             connection: ConnectionConfig::default(),
             display: DisplayConfig::default(),
             keybindings: HashMap::new(),
