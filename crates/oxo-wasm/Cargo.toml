@@ -18,4 +18,4 @@ chrono.workspace = true
 anyhow.workspace = true
 toml.workspace = true
 directories.workspace = true
-wasmtime = "29"
+wasmtime = "36"
