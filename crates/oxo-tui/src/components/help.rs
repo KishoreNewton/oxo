@@ -49,7 +49,7 @@ impl Component for HelpOverlay {
         }
 
         let popup_width = 55u16.min(area.width.saturating_sub(4));
-        let popup_height = 30u16.min(area.height.saturating_sub(4));
+        let popup_height = 50u16.min(area.height.saturating_sub(4));
 
         let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
         let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
@@ -77,6 +77,9 @@ impl Component for HelpOverlay {
             Line::from("  Ctrl+u/PgUp   Page up"),
             Line::from("  Tab/Shift+Tab Cycle focus"),
             Line::from("  Space         Toggle line selection"),
+            Line::from("  1-9           Switch to tab N"),
+            Line::from("  Ctrl+t        New tab"),
+            Line::from("  Ctrl+w        Close tab"),
             Line::from(""),
             Line::from(Span::styled("Search & Query", bold)),
             Line::from(""),
@@ -88,10 +91,34 @@ impl Component for HelpOverlay {
             Line::from(""),
             Line::from("  Enter         Inspect selected log"),
             Line::from("  f             Toggle filter panel"),
+            Line::from("  T             Time range picker"),
             Line::from("  w             Toggle line wrap"),
             Line::from("  t             Toggle timestamps"),
             Line::from("  y             Copy selected line"),
-            Line::from("  e             Export logs to JSON"),
+            Line::from("  e             Export logs (JSON)"),
+            Line::from("  b             Switch source/backend"),
+            Line::from("  s             Log statistics"),
+            Line::from("  x             Expand/collapse multi-line"),
+            Line::from("  C             Toggle search context"),
+            Line::from("  S             Save current query"),
+            Line::from(""),
+            Line::from(Span::styled("Overlays & Modes", bold)),
+            Line::from(""),
+            Line::from("  a             Alert history"),
+            Line::from("  A             Mute/unmute alerts"),
+            Line::from("  i             Analytics dashboard"),
+            Line::from("  c             Column/table mode"),
+            Line::from("  D             Smart dedup"),
+            Line::from("  m             Toggle bookmark"),
+            Line::from("  '             Jump to next bookmark"),
+            Line::from("  W             Trace waterfall"),
+            Line::from("  R             Regex playground"),
+            Line::from("  d             Live diff mode"),
+            Line::from("  H             Health dashboard"),
+            Line::from("  V             Saved views"),
+            Line::from("  L             Live metrics dashboard"),
+            Line::from("  I             Incident timeline"),
+            Line::from("  Ctrl+l        Natural language query"),
             Line::from("  ?             Toggle this help"),
             Line::from("  q/Ctrl+c      Quit"),
         ];

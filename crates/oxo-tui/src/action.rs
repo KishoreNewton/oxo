@@ -41,6 +41,13 @@ pub enum Action {
     /// Toggle the filter side panel.
     ToggleFilterPanel,
 
+    /// Toggle the time range picker overlay.
+    ToggleTimePicker,
+
+    // ── Time range ──────────────────────────────────────────────────
+    /// Set the active time range to the given duration in minutes.
+    SetTimeRange(u64),
+
     // ── Search ──────────────────────────────────────────────────────
     /// Enter search mode (open search input).
     EnterSearchMode,
@@ -122,12 +129,139 @@ pub enum Action {
     NotifyError(String),
 
     // ── Export ───────────────────────────────────────────────────────
-    /// Export visible logs to a file.
+    /// Export visible logs to a file (JSON format).
     ExportLogs,
+
+    /// Export visible logs as CSV.
+    ExportCsv,
+
+    /// Export visible logs as NDJSON (newline-delimited JSON).
+    ExportNdjson,
 
     // ── Backend events ──────────────────────────────────────────────
     /// An event received from the active backend.
     Backend(BackendEvent),
+
+    // ── Statistics ──────────────────────────────────────────────────
+    /// Toggle the log statistics overlay.
+    ToggleStats,
+
+    // ── Label values ────────────────────────────────────────────────
+    /// Request values for a label from the backend (resolved asynchronously).
+    LoadLabelValues(String),
+
+    // ── Saved queries ───────────────────────────────────────────────
+    /// Save the current query with a name (empty = auto-generate from timestamp).
+    SaveQuery(String),
+
+    // ── Sources ──────────────────────────────────────────────────────
+    /// Toggle the source picker overlay.
+    ToggleSourcePicker,
+
+    /// Switch to the source with the given name.
+    SwitchSource(String),
+
+    // ── Tabs ────────────────────────────────────────────────────────
+    /// Open a new tab with the default query.
+    NewTab,
+
+    /// Close the currently active tab.
+    CloseTab,
+
+    /// Switch to the tab at the given 0-based index.
+    SwitchTab(usize),
+
+    // ── Multi-line / context ──────────────────────────────────────────
+    /// Toggle expand/collapse of a multi-line log group (stack trace, etc.).
+    ToggleExpand,
+
+    /// Cycle the search context lines setting (0 → 3 → 5 → 10 → 0).
+    ToggleContext,
+
+    // ── Alerts ───────────────────────────────────────────────────────
+    /// An alert rule fired.
+    AlertFired { rule_name: String, message: String },
+
+    /// Toggle the alert history overlay.
+    ToggleAlertPanel,
+
+    /// Mute/unmute all alerts.
+    ToggleAlertMute,
+
+    // ── Analytics ────────────────────────────────────────────────────
+    /// Toggle the analytics dashboard overlay.
+    ToggleAnalytics,
+
+    // ── Column mode ──────────────────────────────────────────────────
+    /// Toggle column/table view mode for structured log entries.
+    ToggleColumnMode,
+
+    /// Sort the column view by the column at the given index.
+    SortColumn(usize),
+
+    // ── Dedup ──────────────────────────────────────────────────────
+    /// Toggle smart deduplication of consecutive identical log lines.
+    ToggleDedup,
+
+    // ── Bookmarks ──────────────────────────────────────────────────
+    /// Toggle a bookmark on the currently selected log entry.
+    ToggleBookmark,
+
+    /// Jump to the next bookmarked entry.
+    NextBookmark,
+
+    /// Jump to the previous bookmarked entry.
+    PrevBookmark,
+
+    /// Clear all bookmarks.
+    ClearBookmarks,
+
+    // ── Health ───────────────────────────────────────────────────────
+    /// Toggle the health dashboard overlay.
+    ToggleHealthDashboard,
+
+    // ── Autocomplete ──────────────────────────────────────────────────
+    /// Request available label names from the backend for autocomplete.
+    AutocompleteLabels,
+
+    /// Request values for the given label name from the backend for autocomplete.
+    AutocompleteLabelValues(String),
+
+    // ── Trace / Regex ───────────────────────────────────────────────
+    /// Toggle the trace waterfall overlay.
+    ToggleTraceWaterfall,
+
+    /// Toggle the regex playground overlay.
+    ToggleRegexPlayground,
+
+    // ── Diff mode ────────────────────────────────────────────────────
+    /// Toggle the live diff mode overlay.
+    ToggleDiffMode,
+
+    /// Set or update the left-hand diff query.
+    DiffQueryLeft(String),
+
+    /// Set or update the right-hand diff query.
+    DiffQueryRight(String),
+
+    // ── Saved views ──────────────────────────────────────────────────
+    /// Toggle the saved views overlay.
+    ToggleSavedViews,
+
+    // ── Live dashboard ─────────────────────────────────────────────
+    /// Toggle the live metrics dashboard overlay.
+    ToggleLiveDashboard,
+
+    // ── Incident timeline ───────────────────────────────────────────
+    /// Toggle the incident timeline overlay.
+    ToggleIncidentTimeline,
+
+    /// Mark current time as an incident boundary.
+    MarkIncident(String),
+
+    // ── Natural language query ───────────────────────────────────────
+    /// Toggle the natural language query overlay.
+    ToggleNlQuery,
 
     // ── No-op ───────────────────────────────────────────────────────
     /// Do nothing (used as a default / placeholder).

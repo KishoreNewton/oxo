@@ -7,20 +7,37 @@
 //! - Line selection for detail/inspect view
 //! - Mouse scroll support
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
+use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
+use regex::Regex;
 
 use oxo_core::LogEntry;
+use oxo_core::multiline::{self, GroupedEntry};
+use oxo_core::structured::StructuredData;
 
 use crate::action::Action;
 use crate::components::Component;
 use crate::theme::Theme;
+
+/// A group of consecutive deduplicated log entries with identical content.
+#[allow(dead_code)]
+struct DedupGroup {
+    /// Index of the representative entry in the entries buffer.
+    entry_idx: usize,
+    /// Number of consecutive identical entries in this group.
+    count: usize,
+    /// Timestamp of the first entry in the group.
+    first_timestamp: DateTime<Utc>,
+    /// Timestamp of the last entry in the group.
+    last_timestamp: DateTime<Utc>,
+}
 
 /// Log viewer component state.
 pub struct LogViewer {
@@ -51,6 +68,9 @@ pub struct LogViewer {
     /// Active search term.
     search_term: Option<String>,
 
+    /// Compiled regex for the active search term.
+    search_regex: Option<Regex>,
+
     /// Indices of entries matching the search term.
     search_matches: Vec<usize>,
 
@@ -59,6 +79,33 @@ pub struct LogViewer {
 
     /// The color theme.
     theme: Theme,
+
+    /// Grouped entries (multi-line log groups with continuation lines).
+    grouped_entries: Vec<GroupedEntry>,
+
+    /// Number of context lines to show around search matches (0 = off).
+    context_lines: usize,
+
+    // ── Column mode ──────────────────────────────────────────────────
+    /// Whether column/table mode is active.
+    column_mode: bool,
+
+    /// Discovered column names from structured log data.
+    discovered_columns: Vec<String>,
+
+    /// Active sort column and direction: (column_index, ascending).
+    sort_column: Option<(usize, bool)>,
+
+    // ── Deduplication ──────────────────────────────────────────────
+    /// Whether smart deduplication of consecutive identical lines is active.
+    dedup_enabled: bool,
+
+    /// Groups of consecutive identical entries.
+    dedup_groups: Vec<DedupGroup>,
+
+    // ── Bookmarks ──────────────────────────────────────────────────
+    /// Set of bookmarked entry indices.
+    bookmarks: HashSet<usize>,
 }
 
 impl LogViewer {
@@ -74,9 +121,18 @@ impl LogViewer {
             viewport_height: 0,
             selected_line: None,
             search_term: None,
+            search_regex: None,
             search_matches: Vec::new(),
             search_match_cursor: 0,
             theme,
+            grouped_entries: Vec::new(),
+            context_lines: 0,
+            column_mode: false,
+            discovered_columns: Vec::new(),
+            sort_column: None,
+            dedup_enabled: false,
+            dedup_groups: Vec::new(),
+            bookmarks: HashSet::new(),
         }
     }
 
@@ -93,15 +149,50 @@ impl LogViewer {
             self.scroll_offset += new_count;
         }
 
+        // Bookmarks store buffer indices which become invalid when entries
+        // shift. Clear them on every update to avoid pointing at wrong lines.
+        if !self.bookmarks.is_empty() && self.entries.len() != previous_len {
+            self.bookmarks.clear();
+        }
+
         // Rebuild search matches if there's an active search.
         if self.search_term.is_some() {
             self.rebuild_search_matches();
+        }
+
+        // Rebuild multi-line groups.
+        self.grouped_entries = multiline::group_entries(&self.entries);
+
+        // Rebuild dedup groups if dedup is active.
+        if self.dedup_enabled {
+            self.rebuild_dedup_groups();
+        }
+
+        // Re-discover columns if column mode is active.
+        if self.column_mode {
+            self.discover_columns();
         }
     }
 
     /// Set the viewport height (called by App after layout is computed).
     pub fn set_viewport_height(&mut self, height: usize) {
         self.viewport_height = height;
+    }
+
+    /// Whether the viewer is currently in tail (auto-scroll) mode.
+    pub fn is_tail_mode(&self) -> bool {
+        self.tail_mode
+    }
+
+    /// Select a specific line by index within the visible area.
+    ///
+    /// If the index is out of range, the selection is cleared.
+    pub fn select_line(&mut self, visible_index: usize) {
+        let (start, end) = self.visible_range();
+        let visible_count = end.saturating_sub(start);
+        if visible_index < visible_count {
+            self.selected_line = Some(visible_index);
+        }
     }
 
     /// Get the currently selected log entry (for detail view / copy).
@@ -137,7 +228,15 @@ impl LogViewer {
             self.clear_search();
             return;
         }
+        // Try to compile the term as a case-insensitive regex.
+        // On failure, escape it so it is treated as a literal pattern.
+        let pattern = format!("(?i){term}");
+        let compiled = Regex::new(&pattern).unwrap_or_else(|_| {
+            Regex::new(&format!("(?i){}", regex::escape(&term)))
+                .expect("escaped literal regex must always compile")
+        });
         self.search_term = Some(term);
+        self.search_regex = Some(compiled);
         self.rebuild_search_matches();
         self.search_match_cursor = 0;
         // Jump to first match if any.
@@ -149,6 +248,7 @@ impl LogViewer {
     /// Clear search highlighting.
     pub fn clear_search(&mut self) {
         self.search_term = None;
+        self.search_regex = None;
         self.search_matches.clear();
         self.search_match_cursor = 0;
     }
@@ -222,10 +322,9 @@ impl LogViewer {
     /// Rebuild the list of entry indices matching the search term.
     fn rebuild_search_matches(&mut self) {
         self.search_matches.clear();
-        if let Some(ref term) = self.search_term {
-            let term_lower = term.to_lowercase();
+        if let Some(ref re) = self.search_regex {
             for (i, entry) in self.entries.iter().enumerate() {
-                if entry.line.to_lowercase().contains(&term_lower) {
+                if re.is_match(&entry.line) {
                     self.search_matches.push(i);
                 }
             }
@@ -251,9 +350,127 @@ impl LogViewer {
         }
     }
 
+    /// Toggle expand/collapse of the selected multi-line group.
+    pub fn toggle_expand(&mut self) {
+        if let Some(sel) = self.selected_line {
+            let (start, _end) = self.visible_range();
+            let entry_idx = start + sel;
+
+            // Find which grouped entry owns this entry index.
+            if let Some(group_idx) = self.entry_index_to_group(entry_idx) {
+                self.grouped_entries[group_idx].collapsed =
+                    !self.grouped_entries[group_idx].collapsed;
+            }
+        }
+    }
+
+    /// Cycle the search context lines setting: 0 → 3 → 5 → 10 → 0.
+    pub fn toggle_context(&mut self) {
+        self.context_lines = match self.context_lines {
+            0 => 3,
+            3 => 5,
+            5 => 10,
+            _ => 0,
+        };
+    }
+
+    /// Get the current context lines setting.
+    pub fn context_lines(&self) -> usize {
+        self.context_lines
+    }
+
+    /// Map a flat entry index to the index of the [`GroupedEntry`] that owns it.
+    ///
+    /// Each `GroupedEntry` accounts for 1 entry (the parent) plus its
+    /// continuation lines. We walk through the groups, accumulating the count
+    /// of original entries consumed, until we find the group containing
+    /// `entry_idx`.
+    fn entry_index_to_group(&self, entry_idx: usize) -> Option<usize> {
+        let mut consumed = 0usize;
+        for (gi, group) in self.grouped_entries.iter().enumerate() {
+            let group_size = 1 + group.continuation_lines.len();
+            if entry_idx < consumed + group_size {
+                return Some(gi);
+            }
+            consumed += group_size;
+        }
+        None
+    }
+
+    /// Find the grouped entry for a given flat entry index, if any, and return
+    /// it along with the flat index of the group's parent entry.
+    fn group_for_entry(&self, entry_idx: usize) -> Option<(usize, &GroupedEntry)> {
+        let mut consumed = 0usize;
+        for group in self.grouped_entries.iter() {
+            let group_size = 1 + group.continuation_lines.len();
+            if entry_idx < consumed + group_size {
+                return Some((consumed, group));
+            }
+            consumed += group_size;
+        }
+        None
+    }
+
+    /// Build the set of entry indices that should be shown as context around
+    /// search matches. Returns a set of indices that are context (not the
+    /// match itself).
+    fn build_context_set(&self) -> std::collections::HashSet<usize> {
+        let mut ctx = std::collections::HashSet::new();
+        if self.context_lines == 0 || self.search_matches.is_empty() {
+            return ctx;
+        }
+        let total = self.entries.len();
+        for &match_idx in &self.search_matches {
+            let start = match_idx.saturating_sub(self.context_lines);
+            let end = (match_idx + self.context_lines + 1).min(total);
+            for i in start..end {
+                if i != match_idx {
+                    ctx.insert(i);
+                }
+            }
+        }
+        ctx
+    }
+
+    /// Check whether a given entry index falls between two context groups
+    /// (i.e., there is a gap where a separator should be shown).
+    fn is_gap_before(&self, entry_idx: usize) -> bool {
+        if self.context_lines == 0 || self.search_matches.is_empty() {
+            return false;
+        }
+        // A gap exists if the previous entry is NOT a match and NOT context.
+        if entry_idx == 0 {
+            return false;
+        }
+        let match_set: std::collections::HashSet<usize> =
+            self.search_matches.iter().copied().collect();
+        let ctx_set = self.build_context_set();
+        let prev = entry_idx - 1;
+        let this_is_relevant = match_set.contains(&entry_idx) || ctx_set.contains(&entry_idx);
+        let prev_is_relevant = match_set.contains(&prev) || ctx_set.contains(&prev);
+        this_is_relevant && !prev_is_relevant
+    }
+
     /// Format a single log entry as a styled [`Line`], with search highlighting.
-    fn format_entry(&self, entry: &LogEntry, is_selected: bool) -> Line<'_> {
+    ///
+    /// The entire log line text is tinted with the level color (if a known
+    /// level label is present). Search highlights override the level tint so
+    /// matches always stand out.
+    fn format_entry(&self, entry: &LogEntry, entry_idx: usize, is_selected: bool) -> Line<'_> {
         let mut spans = Vec::new();
+
+        // Determine the level-based style for the entire line body.
+        let level_str = entry.labels.get("level").or(entry.labels.get("severity"));
+        let mut line_style = level_str
+            .and_then(|l| self.theme.log_level_color(l))
+            .map(|c| Style::default().fg(c))
+            .unwrap_or_default();
+        // Fatal / critical also gets bold on the whole line.
+        if let Some(l) = level_str {
+            if matches!(l.to_lowercase().as_str(), "fatal" | "critical") {
+                line_style = line_style.add_modifier(Modifier::BOLD);
+            }
+        }
 
         // Selection indicator.
         if is_selected {
@@ -272,21 +489,396 @@ impl LogViewer {
             spans.push(Span::raw(" "));
         }
 
-        // Log level (if present in labels).
-        if let Some(level) = entry.labels.get("level").or(entry.labels.get("severity")) {
+        // Log level prefix (if present in labels).
+        if let Some(level) = level_str {
             let style = self.theme.log_level_style(level);
             spans.push(Span::styled(format!("[{level:>5}]"), style));
             spans.push(Span::raw(" "));
         }
 
-        // Log line — with search term highlighting.
-        if let Some(ref term) = self.search_term {
-            spans.extend(highlight_matches(&entry.line, term, &self.theme));
+        // Log line body — search highlights override level color.
+        if let Some(ref re) = self.search_regex {
+            spans.extend(highlight_matches(&entry.line, re, &self.theme, line_style));
         } else {
-            spans.push(Span::raw(entry.line.clone()));
+            spans.push(Span::styled(entry.line.clone(), line_style));
+        }
+
+        // If this entry is the parent of a collapsed multi-line group, add
+        // a collapse indicator showing the number of hidden continuation lines.
+        if let Some((parent_idx, group)) = self.group_for_entry(entry_idx) {
+            // Only annotate the parent line (not continuation lines).
+            if entry_idx == parent_idx && !group.continuation_lines.is_empty() && group.collapsed {
+                let count = group.continuation_lines.len();
+                spans.push(Span::styled(
+                    format!(" \u{25B6} +{count} lines"),
+                    self.theme.dimmed(),
+                ));
+            }
         }
 
         Line::from(spans)
+    }
+
+    /// Format a continuation line with a dim `│ ` prefix.
+    fn format_continuation_line(&self, text: &str) -> Line<'_> {
+        let spans = vec![
+            Span::styled("│ ", self.theme.dimmed()),
+            Span::styled(text.to_string(), self.theme.dimmed()),
+        ];
+        Line::from(spans)
+    }
+
+    /// Format a context entry (dimmed with `·` prefix instead of line number).
+    fn format_context_entry(&self, entry: &LogEntry) -> Line<'_> {
+        let mut spans = vec![Span::styled("· ", self.theme.dimmed())];
+
+        if self.show_timestamps {
+            let ts = entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+            spans.push(Span::styled(ts, self.theme.dimmed()));
+            spans.push(Span::raw(" "));
+        }
+
+        let level_str = entry.labels.get("level").or(entry.labels.get("severity"));
+        if let Some(level) = level_str {
+            spans.push(Span::styled(format!("[{level:>5}]"), self.theme.dimmed()));
+            spans.push(Span::raw(" "));
+        }
+
+        spans.push(Span::styled(entry.line.clone(), self.theme.dimmed()));
+        Line::from(spans)
+    }
+
+    /// Create a separator line (`---`) used between context groups.
+    fn format_separator(&self) -> Line<'_> {
+        Line::from(Span::styled("---", self.theme.dimmed()))
+    }
+
+    // ── Column mode methods ─────────────────────────────────────────
+
+    /// Scan visible entries, parse structured data, and collect all unique
+    /// field names. Columns are ordered: timestamp first (if present), then
+    /// level, then the rest alphabetically.
+    fn discover_columns(&mut self) {
+        let mut field_set: HashSet<String> = HashSet::new();
+
+        let (start, end) = self.visible_range();
+        for entry in &self.entries[start..end] {
+            if let Some(sd) = StructuredData::parse(&entry.line) {
+                for (key, _) in sd.fields() {
+                    field_set.insert(key);
+                }
+            }
+        }
+
+        let mut priority_cols: Vec<String> = Vec::new();
+        let mut rest: Vec<String> = Vec::new();
+
+        // "timestamp" first (if present).
+        if field_set.remove("timestamp") {
+            priority_cols.push("timestamp".to_string());
+        }
+        // "level" second (if present).
+        if field_set.remove("level") {
+            priority_cols.push("level".to_string());
+        }
+
+        // Everything else, sorted alphabetically.
+        rest.extend(field_set);
+        rest.sort();
+
+        priority_cols.extend(rest);
+        self.discovered_columns = priority_cols;
+    }
+
+    /// Toggle column/table mode on or off. Discovers columns when enabling.
+    pub fn toggle_column_mode(&mut self) {
+        self.column_mode = !self.column_mode;
+        if self.column_mode {
+            self.discover_columns();
+        }
+    }
+
+    /// Sort entries by the given column index. Toggles direction if the
+    /// same column is selected again; otherwise sets ascending.
+    pub fn sort_by_column(&mut self, col_idx: usize) {
+        if col_idx >= self.discovered_columns.len() {
+            return;
+        }
+        let ascending = match self.sort_column {
+            Some((prev_idx, prev_asc)) if prev_idx == col_idx => !prev_asc,
+            _ => true,
+        };
+        self.sort_column = Some((col_idx, ascending));
+
+        let col_name = self.discovered_columns[col_idx].clone();
+        self.entries.sort_by(|a, b| {
+            let val_a = StructuredData::parse(&a.line)
+                .and_then(|sd| sd.get(&col_name))
+                .unwrap_or_default();
+            let val_b = StructuredData::parse(&b.line)
+                .and_then(|sd| sd.get(&col_name))
+                .unwrap_or_default();
+            if ascending {
+                val_a.cmp(&val_b)
+            } else {
+                val_b.cmp(&val_a)
+            }
+        });
+
+        // Sorting reorders entries, invalidating selection and dedup groups.
+        self.selected_line = None;
+        self.bookmarks.clear();
+        if self.dedup_enabled {
+            self.rebuild_dedup_groups();
+        }
+    }
+
+    // ── Dedup methods ───────────────────────────────────────────────
+
+    /// Rebuild dedup groups by scanning the entry buffer and grouping
+    /// consecutive entries with identical `.line` content.
+    fn rebuild_dedup_groups(&mut self) {
+        self.dedup_groups.clear();
+        if self.entries.is_empty() {
+            return;
+        }
+
+        let mut current = DedupGroup {
+            entry_idx: 0,
+            count: 1,
+            first_timestamp: self.entries[0].timestamp,
+            last_timestamp: self.entries[0].timestamp,
+        };
+
+        for i in 1..self.entries.len() {
+            if self.entries[i].line == self.entries[current.entry_idx].line {
+                current.count += 1;
+                current.last_timestamp = self.entries[i].timestamp;
+            } else {
+                self.dedup_groups.push(current);
+                current = DedupGroup {
+                    entry_idx: i,
+                    count: 1,
+                    first_timestamp: self.entries[i].timestamp,
+                    last_timestamp: self.entries[i].timestamp,
+                };
+            }
+        }
+        self.dedup_groups.push(current);
+    }
+
+    /// Toggle smart deduplication on or off. Rebuilds groups when enabling.
+    pub fn toggle_dedup(&mut self) {
+        self.dedup_enabled = !self.dedup_enabled;
+        if self.dedup_enabled {
+            self.rebuild_dedup_groups();
+        }
+    }
+
+    // ── Bookmark methods ────────────────────────────────────────────
+
+    /// Toggle a bookmark on the currently selected entry.
+    pub fn toggle_bookmark(&mut self) {
+        if let Some(sel) = self.selected_line {
+            let (start, _end) = self.visible_range();
+            let entry_idx = start + sel;
+            if entry_idx < self.entries.len() {
+                if !self.bookmarks.remove(&entry_idx) {
+                    self.bookmarks.insert(entry_idx);
+                }
+            }
+        }
+    }
+
+    /// Jump to the next bookmarked entry after the current selection.
+    pub fn next_bookmark(&mut self) {
+        if self.bookmarks.is_empty() {
+            return;
+        }
+        let (start, _end) = self.visible_range();
+        // When no line is selected, use MAX so the wrap-around lands on the
+        // first bookmark (via `.or(sorted.first())`).
+        let current = self
+            .selected_line
+            .map(|sel| start + sel)
+            .unwrap_or(usize::MAX);
+
+        // Find the smallest bookmark index > current.
+        let mut sorted: Vec<usize> = self.bookmarks.iter().copied().collect();
+        sorted.sort();
+
+        let next = sorted
+            .iter()
+            .find(|&&idx| idx > current)
+            .or(sorted.first())
+            .copied();
+
+        if let Some(idx) = next {
+            self.scroll_to_entry(idx);
+        }
+    }
+
+    /// Jump to the previous bookmarked entry before the current selection.
+    pub fn prev_bookmark(&mut self) {
+        if self.bookmarks.is_empty() {
+            return;
+        }
+        let (start, _end) = self.visible_range();
+        let current = self
+            .selected_line
+            .map(|sel| start + sel)
+            .unwrap_or(0);
+
+        let mut sorted: Vec<usize> = self.bookmarks.iter().copied().collect();
+        sorted.sort();
+
+        let prev = sorted
+            .iter()
+            .rev()
+            .find(|&&idx| idx < current)
+            .or(sorted.last())
+            .copied();
+
+        if let Some(idx) = prev {
+            self.scroll_to_entry(idx);
+        }
+    }
+
+    /// Clear all bookmarks.
+    pub fn clear_bookmarks(&mut self) {
+        self.bookmarks.clear();
+    }
+
+    /// Scroll the view so that the given entry index is visible and selected.
+    fn scroll_to_entry(&mut self, entry_idx: usize) {
+        let total = self.entries.len();
+        if entry_idx >= total {
+            return;
+        }
+        let half = self.viewport_height / 2;
+        if total > self.viewport_height {
+            let desired_end = (entry_idx + half + 1).min(total);
+            self.scroll_offset = total - desired_end;
+        }
+        self.tail_mode = false;
+        let (start, _end) = self.visible_range();
+        self.selected_line = Some(entry_idx.saturating_sub(start));
+    }
+
+    /// Format an entry with a bookmark marker prepended if bookmarked.
+    fn format_entry_with_bookmark(
+        &self,
+        entry: &LogEntry,
+        entry_idx: usize,
+        is_selected: bool,
+    ) -> Line<'_> {
+        let mut line = self.format_entry(entry, entry_idx, is_selected);
+        if self.bookmarks.contains(&entry_idx) {
+            // Prepend the bookmark marker at the very beginning.
+            line.spans.insert(
+                0,
+                Span::styled(
+                    "\u{25C6} ",
+                    Style::default()
+                        .fg(self.theme.accent)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            );
+        }
+        line
+    }
+
+    /// Render the column/table mode view using a [`Table`] widget.
+    fn render_column_mode(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
+        let (start, end) = self.visible_range();
+        let col_count = self.discovered_columns.len();
+
+        // Build the header row.
+        let header_cells: Vec<Cell> = self
+            .discovered_columns
+            .iter()
+            .enumerate()
+            .map(|(ci, name)| {
+                let mut label = name.clone();
+                if let Some((sort_idx, ascending)) = self.sort_column {
+                    if sort_idx == ci {
+                        label.push_str(if ascending { " \u{25B2}" } else { " \u{25BC}" });
+                    }
+                }
+                Cell::from(label).style(
+                    Style::default()
+                        .fg(self.theme.fg)
+                        .add_modifier(Modifier::BOLD),
+                )
+            })
+            .collect();
+        let header = Row::new(header_cells)
+            .style(Style::default().fg(self.theme.fg))
+            .bottom_margin(0);
+
+        // Build data rows.
+        let mut rows: Vec<Row> = Vec::new();
+        for (i, entry) in self.entries[start..end].iter().enumerate() {
+            let entry_idx = start + i;
+            let is_selected = self.selected_line == Some(i);
+            let is_bookmarked = self.bookmarks.contains(&entry_idx);
+
+            let parsed = StructuredData::parse(&entry.line);
+
+            let cells: Vec<Cell> = self
+                .discovered_columns
+                .iter()
+                .enumerate()
+                .map(|(ci, col_name)| {
+                    let value = parsed
+                        .as_ref()
+                        .and_then(|sd| sd.get(col_name))
+                        .unwrap_or_else(|| "-".to_string());
+
+                    // For the first column, optionally prepend the bookmark marker.
+                    let display = if ci == 0 && is_bookmarked {
+                        format!("\u{25C6} {value}")
+                    } else {
+                        value
+                    };
+
+                    Cell::from(display)
+                })
+                .collect();
+
+            let row_style = if is_selected {
+                Style::default()
+                    .fg(self.theme.accent)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                // Tint by log level if available.
+                let level_str =
+                    entry.labels.get("level").or(entry.labels.get("severity"));
+                level_str
+                    .and_then(|l| self.theme.log_level_color(l))
+                    .map(|c| Style::default().fg(c))
+                    .unwrap_or_default()
+            };
+
+            rows.push(Row::new(cells).style(row_style));
+        }
+
+        // Compute column widths: distribute evenly with a minimum width.
+        let widths: Vec<Constraint> = if col_count > 0 {
+            let pct = 100u16.saturating_div(col_count as u16).max(1);
+            (0..col_count)
+                .map(|_| Constraint::Min(pct.max(8)))
+                .collect()
+        } else {
+            vec![Constraint::Percentage(100)]
+        };
+
+        let table = Table::new(rows, &widths)
+            .header(header)
+            .block(block)
+            .column_spacing(1);
+
+        frame.render_widget(table, area);
     }
 }
 
@@ -357,6 +949,18 @@ impl Component for LogViewer {
 
     fn handle_action(&mut self, action: &Action) -> Option<Action> {
         match action {
+            Action::ScrollUp(n) => {
+                self.scroll_up(*n);
+                None
+            }
+            Action::ScrollDown(n) => {
+                self.scroll_down(*n);
+                None
+            }
+            Action::SelectLine(idx) => {
+                self.select_line(*idx);
+                None
+            }
             Action::ToggleLineWrap => {
                 self.line_wrap = !self.line_wrap;
                 None
@@ -379,6 +983,42 @@ impl Component for LogViewer {
             }
             Action::SearchClear => {
                 self.clear_search();
+                None
+            }
+            Action::ToggleExpand => {
+                self.toggle_expand();
+                None
+            }
+            Action::ToggleContext => {
+                self.toggle_context();
+                None
+            }
+            Action::ToggleColumnMode => {
+                self.toggle_column_mode();
+                None
+            }
+            Action::SortColumn(idx) => {
+                self.sort_by_column(*idx);
+                None
+            }
+            Action::ToggleDedup => {
+                self.toggle_dedup();
+                None
+            }
+            Action::ToggleBookmark => {
+                self.toggle_bookmark();
+                None
+            }
+            Action::NextBookmark => {
+                self.next_bookmark();
+                None
+            }
+            Action::PrevBookmark => {
+                self.prev_bookmark();
+                None
+            }
+            Action::ClearBookmarks => {
+                self.clear_bookmarks();
                 None
             }
             _ => None,
@@ -406,6 +1046,18 @@ impl Component for LogViewer {
                 ));
             }
         }
+        if self.context_lines > 0 {
+            title_parts.push(format!("[ctx:{}]", self.context_lines));
+        }
+        if self.column_mode {
+            title_parts.push("[COL]".to_string());
+        }
+        if self.dedup_enabled {
+            title_parts.push("[DEDUP]".to_string());
+        }
+        if !self.bookmarks.is_empty() {
+            title_parts.push(format!("[{}bm]", self.bookmarks.len()));
+        }
         let title = format!("{} ", title_parts.join(" "));
 
         let border_style = if focused {
@@ -419,17 +1071,112 @@ impl Component for LogViewer {
             .borders(Borders::ALL)
             .border_style(border_style);
 
+        // ── Column mode rendering ───────────────────────────────────
+        if self.column_mode && !self.discovered_columns.is_empty() {
+            self.render_column_mode(frame, area, block);
+            let _ = inner_height;
+            return;
+        }
+
         // Get the visible slice of entries.
         let (start, end) = self.visible_range();
 
-        let lines: Vec<Line> = self.entries[start..end]
-            .iter()
-            .enumerate()
-            .map(|(i, entry)| {
-                let is_selected = self.selected_line == Some(i);
-                self.format_entry(entry, is_selected)
-            })
-            .collect();
+        // ── Dedup mode rendering ────────────────────────────────────
+        if self.dedup_enabled && !self.dedup_groups.is_empty() {
+            let mut lines: Vec<Line> = Vec::new();
+
+            // Iterate dedup groups, but only show those that overlap the
+            // visible range.
+            for group in &self.dedup_groups {
+                let idx = group.entry_idx;
+                if idx < start {
+                    continue;
+                }
+                if idx >= end {
+                    break;
+                }
+
+                let visible_i = idx - start;
+                let is_selected = self.selected_line == Some(visible_i);
+                let entry = &self.entries[idx];
+
+                let mut line = self.format_entry_with_bookmark(entry, idx, is_selected);
+                if group.count > 1 {
+                    line.spans.push(Span::styled(
+                        format!(" (x{})", group.count),
+                        self.theme.dimmed(),
+                    ));
+                }
+                lines.push(line);
+            }
+
+            let mut paragraph = Paragraph::new(lines).block(block);
+            if self.line_wrap {
+                paragraph = paragraph.wrap(Wrap { trim: false });
+            }
+            frame.render_widget(paragraph, area);
+            let _ = inner_height;
+            return;
+        }
+
+        // ── Normal mode rendering ───────────────────────────────────
+        // Build context information for context view mode.
+        let search_active = self.search_term.is_some() && self.context_lines > 0;
+        let match_set: HashSet<usize> = if search_active {
+            self.search_matches.iter().copied().collect()
+        } else {
+            HashSet::new()
+        };
+        let ctx_set = if search_active {
+            self.build_context_set()
+        } else {
+            HashSet::new()
+        };
+
+        let mut lines: Vec<Line> = Vec::new();
+
+        for (i, entry) in self.entries[start..end].iter().enumerate() {
+            let entry_idx = start + i;
+            let is_selected = self.selected_line == Some(i);
+
+            // Context view filtering: when context mode is active and search
+            // is active, only show matches, context entries, and separators.
+            if search_active {
+                let is_match = match_set.contains(&entry_idx);
+                let is_context = ctx_set.contains(&entry_idx);
+
+                if !is_match && !is_context {
+                    continue;
+                }
+
+                // Insert separator if there is a gap before this entry.
+                if self.is_gap_before(entry_idx) {
+                    lines.push(self.format_separator());
+                }
+
+                if is_context && !is_match {
+                    lines.push(self.format_context_entry(entry));
+                } else {
+                    lines.push(self.format_entry_with_bookmark(entry, entry_idx, is_selected));
+                }
+            } else {
+                // Check if this entry is a continuation line within a collapsed group.
+                if let Some((parent_idx, group)) = self.group_for_entry(entry_idx) {
+                    if entry_idx != parent_idx && group.collapsed {
+                        // Skip continuation lines when collapsed (the count
+                        // indicator is appended to the parent line by format_entry).
+                        continue;
+                    }
+                    if entry_idx != parent_idx && !group.collapsed {
+                        // Show expanded continuation line with │ prefix.
+                        lines.push(self.format_continuation_line(&entry.line));
+                        continue;
+                    }
+                }
+
+                lines.push(self.format_entry_with_bookmark(entry, entry_idx, is_selected));
+            }
+        }
 
         let mut paragraph = Paragraph::new(lines).block(block);
         if self.line_wrap {
@@ -442,37 +1189,46 @@ impl Component for LogViewer {
     }
 }
 
-/// Split a string by a search term and return styled spans with highlights.
-fn highlight_matches<'a>(text: &str, term: &str, _theme: &Theme) -> Vec<Span<'a>> {
+/// Split a string by a regex and return styled spans with highlights.
+///
+/// Non-matching segments use `base_style` (typically the level color), while
+/// matching segments get the hard-coded search highlight (black on yellow,
+/// bold), which completely overrides the base style so matches always pop.
+fn highlight_matches<'a>(
+    text: &str,
+    regex: &Regex,
+    _theme: &Theme,
+    base_style: Style,
+) -> Vec<Span<'a>> {
     let mut spans = Vec::new();
-    let text_lower = text.to_lowercase();
-    let term_lower = term.to_lowercase();
     let mut last_end = 0;
 
-    for (start, _) in text_lower.match_indices(&term_lower) {
-        // Text before the match.
+    for m in regex.find_iter(text) {
+        let start = m.start();
+        let end = m.end();
+
+        // Text before the match — use the level-based base style.
         if start > last_end {
-            spans.push(Span::raw(text[last_end..start].to_string()));
+            spans.push(Span::styled(text[last_end..start].to_string(), base_style));
         }
-        // The matched text (preserve original casing).
-        let matched = &text[start..start + term.len()];
+        // The matched text — search highlight overrides level color.
         spans.push(Span::styled(
-            matched.to_string(),
+            text[start..end].to_string(),
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ));
-        last_end = start + term.len();
+        last_end = end;
     }
 
     // Remaining text after last match.
     if last_end < text.len() {
-        spans.push(Span::raw(text[last_end..].to_string()));
+        spans.push(Span::styled(text[last_end..].to_string(), base_style));
     }
 
     if spans.is_empty() {
-        spans.push(Span::raw(text.to_string()));
+        spans.push(Span::styled(text.to_string(), base_style));
     }
 
     spans

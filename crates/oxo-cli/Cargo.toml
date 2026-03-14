@@ -12,15 +12,26 @@ name = "oxo"
 path = "src/main.rs"
 
 [features]
-default = ["loki", "demo"]
+default = ["loki", "demo", "local", "alert", "analytics", "elasticsearch", "cloudwatch", "wasm"]
 loki = ["dep:oxo-loki"]
 demo = ["dep:oxo-demo"]
+local = ["dep:oxo-local"]
+alert = ["dep:oxo-alert"]
+analytics = ["dep:oxo-analytics"]
+elasticsearch = ["dep:oxo-elasticsearch"]
+cloudwatch = ["dep:oxo-cloudwatch"]
+wasm = ["oxo-tui/wasm"]
 
 [dependencies]
 oxo-core.workspace = true
 oxo-tui.workspace = true
 oxo-loki = { workspace = true, optional = true }
 oxo-demo = { workspace = true, optional = true }
+oxo-local = { workspace = true, optional = true }
+oxo-alert = { workspace = true, optional = true }
+oxo-analytics = { workspace = true, optional = true }
+oxo-elasticsearch = { workspace = true, optional = true }
+oxo-cloudwatch = { workspace = true, optional = true }
 tokio.workspace = true
 clap.workspace = true
 toml.workspace = true

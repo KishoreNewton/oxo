@@ -20,11 +20,14 @@
 //!
 //! ```no_run
 //! use oxo_core::config::DisplayConfig;
-//! use oxo_tui::app::App;
+//! use oxo_tui::app::{App, EngineChannels};
 //!
 //! # async fn example(backend: Box<dyn oxo_core::LogBackend>) {
 //! let config = DisplayConfig::default();
-//! let mut app = App::new(backend, config, Some("{job=\"api\"}".into()));
+//! let mut app = App::new(
+//!     backend, config, Some("{job=\"api\"}".into()), None, vec![],
+//!     EngineChannels::default(),
+//! );
 //! app.run().await.expect("app crashed");
 //! # }
 //! ```
@@ -33,7 +36,11 @@ pub mod action;
 pub mod app;
 pub mod components;
 pub mod event;
+pub mod export;
 pub mod keymap;
 pub mod layout;
+pub mod saved_queries;
+pub mod session;
 pub mod terminal;
 pub mod theme;
+pub mod views;

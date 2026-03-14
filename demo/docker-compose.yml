@@ -1,0 +1,33 @@
+# Docker Compose stack for oxo demo recordings.
+#
+# Spins up Loki + a log generator that pushes realistic microservice
+# logs. Used by tape 02 (live-tailing) and can be left running for
+# manual exploration.
+#
+# Usage:
+#   docker compose up -d          # start stack
+#   oxo --url http://localhost:3100 --query '{job="microservices"}'
+#   docker compose down            # tear down
+
+services:
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki.yml:/etc/loki/config.yaml
+    command: -config.file=/etc/loki/config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  log-generator:
+    build: ./log-generator
+    depends_on:
+      loki:
+        condition: service_healthy
+    environment:
+      LOKI_URL: "http://loki:3100"
+    restart: unless-stopped

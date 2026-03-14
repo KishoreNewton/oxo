@@ -37,19 +37,41 @@ ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
 tui-input = "0.11"
 
+# Regex
+regex = "1"
+
 # CLI
 clap = { version = "4", features = ["derive"] }
 directories = "6"
+dirs = "6"
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Alerting
+lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport", "builder"] }
+notify-rust = "4"
+
+# AWS signing (for CloudWatch)
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+
+# WASM plugins
+wasmtime = "29"
+
 # Internal crates
 oxo-core = { path = "crates/oxo-core" }
 oxo-loki = { path = "crates/oxo-loki" }
 oxo-demo = { path = "crates/oxo-demo" }
+oxo-local = { path = "crates/oxo-local" }
 oxo-tui = { path = "crates/oxo-tui" }
+oxo-alert = { path = "crates/oxo-alert" }
+oxo-analytics = { path = "crates/oxo-analytics" }
+oxo-elasticsearch = { path = "crates/oxo-elasticsearch" }
+oxo-cloudwatch = { path = "crates/oxo-cloudwatch" }
+oxo-wasm = { path = "crates/oxo-wasm" }
 
 [profile.release]
 lto = true

@@ -26,7 +26,7 @@ use oxo_core::query::TimeRange;
 /// Demo backend that produces synthetic log entries.
 pub struct DemoBackend;
 
-/// Sample log messages used by the demo backend.
+/// Sample plain-text log messages used by the demo backend.
 const MESSAGES: &[&str] = &[
     "GET /api/v1/users 200 12ms",
     "POST /api/v1/orders 201 45ms",
@@ -48,6 +48,22 @@ const MESSAGES: &[&str] = &[
     "new deployment detected: version=v2.4.1, rolling update started",
     "health check passed: cpu=23%, memory=67%, disk=45%",
     "message queue consumer lag: 4200 messages behind",
+];
+
+/// Sample JSON-formatted log messages (≈30 % of generated entries).
+const JSON_MESSAGES: &[&str] = &[
+    r#"{"msg":"Connection established","client_ip":"10.0.1.42","latency_ms":23,"trace_id":"abc123"}"#,
+    r#"{"msg":"Request completed","method":"GET","path":"/api/v1/users","status":200,"duration_ms":12}"#,
+    r#"{"msg":"Authentication failed","reason":"invalid_token","user_id":"u-9918","attempt":3}"#,
+    r#"{"msg":"Cache miss","key":"product:555:detail","backend":"redis","fallback":"db"}"#,
+    r#"{"msg":"Payment processed","amount":99.95,"currency":"USD","order_id":"ord-77231","provider":"stripe"}"#,
+    r#"{"msg":"Slow query detected","query":"SELECT * FROM events","duration_ms":1340,"rows_examined":84000}"#,
+    r#"{"msg":"Rate limit triggered","ip":"203.0.113.77","limit":100,"window_s":60,"remaining":0}"#,
+    r#"{"msg":"Deployment started","version":"v2.4.1","strategy":"rolling","replicas":3,"initiator":"ci-bot"}"#,
+    r#"{"msg":"Health check","status":"ok","cpu_pct":23,"mem_pct":67,"disk_pct":45}"#,
+    r#"{"msg":"WebSocket disconnected","code":1001,"reason":"going away","session_id":"ws-4412","duration_s":187}"#,
+    r#"{"msg":"Batch job finished","job":"invoice-export","records":1500,"elapsed_s":2.3,"errors":0}"#,
+    r#"{"msg":"TLS error","error":"certificate expired","host":"payments.internal","expiry":"2024-01-01"}"#,
 ];
 
 /// Sample services for label variety.
@@ -85,8 +101,17 @@ fn random_level(rng: &mut impl Rng) -> &'static str {
 }
 
 /// Generate a single random log entry.
+///
+/// Roughly 30 % of entries use a JSON-formatted message so users can see
+/// structured-field parsing in action within the detail panel.
 fn random_entry(rng: &mut impl Rng) -> LogEntry {
-    let message = MESSAGES[rng.random_range(0..MESSAGES.len())];
+    let use_json = rng.random_range(0u32..10) < 3; // 30 % probability
+    let message = if use_json {
+        JSON_MESSAGES[rng.random_range(0..JSON_MESSAGES.len())]
+    } else {
+        MESSAGES[rng.random_range(0..MESSAGES.len())]
+    };
+
     let service = SERVICES[rng.random_range(0..SERVICES.len())];
     let namespace = NAMESPACES[rng.random_range(0..NAMESPACES.len())];
     let level = random_level(rng);

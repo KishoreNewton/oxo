@@ -29,6 +29,8 @@ pub struct StatusBar {
     backend_name: String,
     /// Current connection state.
     connection_state: ConnectionState,
+    /// Whether the log viewer is in tail (auto-scroll) mode.
+    tail_mode: bool,
     /// Current log rate (entries per tick).
     rate: u64,
     /// Current buffer size.
@@ -45,6 +47,7 @@ impl StatusBar {
         Self {
             backend_name,
             connection_state: ConnectionState::Disconnected,
+            tail_mode: true,
             rate: 0,
             buffer_size: 0,
             max_buffer_size,
@@ -55,6 +58,11 @@ impl StatusBar {
     /// Update the connection state.
     pub fn set_connection_state(&mut self, state: ConnectionState) {
         self.connection_state = state;
+    }
+
+    /// Update the tail mode indicator.
+    pub fn set_tail_mode(&mut self, tailing: bool) {
+        self.tail_mode = tailing;
     }
 
     /// Update the log rate display.
@@ -97,6 +105,12 @@ impl Component for StatusBar {
             ConnectionState::Reconnecting => self.theme.warn,
         };
 
+        let (tail_symbol, tail_text, tail_color) = if self.tail_mode {
+            ("\u{2913}", "TAIL", self.theme.info) // ⤓ TAIL (green)
+        } else {
+            ("\u{23F8}", "PAUSED", self.theme.warn) // ⏸ PAUSED (yellow)
+        };
+
         let left = Line::from(vec![
             Span::styled(
                 format!(" {state_symbol} "),
@@ -105,6 +119,11 @@ impl Component for StatusBar {
             Span::styled(
                 format!("{} {state_text}", self.backend_name),
                 self.theme.status_bar(),
+            ),
+            Span::styled(" │ ", self.theme.status_bar()),
+            Span::styled(
+                format!("{tail_symbol} {tail_text}"),
+                ratatui::style::Style::default().fg(tail_color),
             ),
             Span::styled(" │ ", self.theme.status_bar()),
             Span::styled(format!("{}/tick", self.rate), self.theme.status_bar()),

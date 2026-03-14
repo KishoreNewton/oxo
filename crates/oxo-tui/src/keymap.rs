@@ -43,6 +43,15 @@ pub fn handle_key(mode: InputMode, key: KeyEvent) -> Action {
 
 /// Key bindings for normal (log browsing) mode.
 fn handle_normal_mode(key: KeyEvent) -> Action {
+    // Ctrl+t → new tab; Ctrl+w → close tab.
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        match key.code {
+            KeyCode::Char('t') => return Action::NewTab,
+            KeyCode::Char('w') => return Action::CloseTab,
+            _ => {}
+        }
+    }
+
     match key.code {
         // Quit
         KeyCode::Char('q') => Action::Quit,
@@ -80,6 +89,7 @@ fn handle_normal_mode(key: KeyEvent) -> Action {
         KeyCode::Char('f') => Action::ToggleFilterPanel,
         KeyCode::Char('w') => Action::ToggleLineWrap,
         KeyCode::Char('t') => Action::ToggleTimestamps,
+        KeyCode::Char('T') => Action::ToggleTimePicker,
 
         // Detail view
         KeyCode::Enter => Action::ToggleDetail,
@@ -89,6 +99,72 @@ fn handle_normal_mode(key: KeyEvent) -> Action {
 
         // Export logs
         KeyCode::Char('e') => Action::ExportLogs,
+
+        // Switch to tab 1-9 (digit keys, no modifiers).
+        KeyCode::Char(c @ '1'..='9') if key.modifiers.is_empty() => {
+            let n = (c as u8 - b'0') as usize;
+            Action::SwitchTab(n - 1) // convert to 0-based index
+        }
+
+        // Source picker
+        KeyCode::Char('b') => Action::ToggleSourcePicker,
+
+        // Expand/collapse multi-line log groups
+        KeyCode::Char('x') => Action::ToggleExpand,
+
+        // Cycle search context lines
+        KeyCode::Char('C') => Action::ToggleContext,
+
+        // Statistics overlay
+        KeyCode::Char('s') => Action::ToggleStats,
+
+        // Save current query
+        KeyCode::Char('S') => Action::SaveQuery(String::new()),
+
+        // Alert history overlay
+        KeyCode::Char('a') => Action::ToggleAlertPanel,
+
+        // Mute/unmute alerts
+        KeyCode::Char('A') => Action::ToggleAlertMute,
+
+        // Analytics dashboard overlay
+        KeyCode::Char('i') => Action::ToggleAnalytics,
+
+        // Column/table mode
+        KeyCode::Char('c') => Action::ToggleColumnMode,
+
+        // Smart deduplication
+        KeyCode::Char('D') => Action::ToggleDedup,
+
+        // Bookmarks
+        KeyCode::Char('m') => Action::ToggleBookmark,
+        KeyCode::Char('\'') => Action::NextBookmark,
+
+        // Trace waterfall
+        KeyCode::Char('W') => Action::ToggleTraceWaterfall,
+
+        // Regex playground
+        KeyCode::Char('R') => Action::ToggleRegexPlayground,
+
+        // Diff mode
+        KeyCode::Char('d') if key.modifiers.is_empty() => Action::ToggleDiffMode,
+
+        // Health dashboard
+        KeyCode::Char('H') => Action::ToggleHealthDashboard,
+
+        // Saved views
+        KeyCode::Char('V') => Action::ToggleSavedViews,
+
+        // Live metrics dashboard
+        KeyCode::Char('L') => Action::ToggleLiveDashboard,
+
+        // Incident timeline
+        KeyCode::Char('I') => Action::ToggleIncidentTimeline,
+
+        // Natural language query (Ctrl+l)
+        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            Action::ToggleNlQuery
+        }
 
         _ => Action::Noop,
     }
@@ -126,6 +202,7 @@ fn handle_detail_mode(key: KeyEvent) -> Action {
         KeyCode::Esc | KeyCode::Enter => Action::ToggleDetail,
         KeyCode::Char('j') | KeyCode::Down => Action::ScrollDown(1),
         KeyCode::Char('k') | KeyCode::Up => Action::ScrollUp(1),
+        KeyCode::Char('x') => Action::ToggleExpand,
         _ => Action::Noop,
     }
 }

@@ -1,0 +1,39 @@
+# oxo config for the Docker/Loki demo recordings.
+# Used by tape 02 (live-tailing).
+
+backend = "loki"
+
+[connection]
+url = "http://localhost:3100"
+
+[display]
+max_buffer_size = 50000
+mouse = true
+tick_rate_ms = 250
+render_rate_ms = 50
+show_timestamps = true
+line_wrap = false
+
+# Alert rules that fire on the demo log stream.
+[alerts]
+enabled = true
+
+[[alerts.rules]]
+name = "High Error Rate"
+pattern = "(?i)(error|failed|exception|panic)"
+cooldown_secs = 30
+
+[[alerts.rules]]
+name = "Payment Failure"
+pattern = "payment.*fail|circuit breaker OPEN"
+cooldown_secs = 60
+
+# Multiple log sources for the source picker demo.
+[[sources]]
+name = "Production Loki"
+type = "loki"
+url = "http://localhost:3100"
+
+[[sources]]
+name = "Demo (synthetic)"
+type = "demo"

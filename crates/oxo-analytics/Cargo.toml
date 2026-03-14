@@ -1,0 +1,17 @@
+[package]
+name = "oxo-analytics"
+description = "Advanced log analytics for oxo: pattern clustering, anomaly detection, correlation, trends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+oxo-core.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+chrono.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true

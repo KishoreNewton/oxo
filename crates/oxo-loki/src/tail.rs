@@ -108,20 +108,26 @@ async fn connect_and_stream(
             use base64::Engine;
             let credentials =
                 base64::engine::general_purpose::STANDARD.encode(format!("{username}:{password}"));
-            headers.insert(
-                "Authorization",
-                format!("Basic {credentials}").parse().unwrap(),
-            );
+            let value = format!("Basic {credentials}")
+                .parse()
+                .map_err(|e| format!("invalid Authorization header value: {e}"))?;
+            headers.insert("Authorization", value);
         }
         Some(AuthConfig::Bearer { token }) => {
-            headers.insert("Authorization", format!("Bearer {token}").parse().unwrap());
+            let value = format!("Bearer {token}")
+                .parse()
+                .map_err(|e| format!("invalid Authorization header value: {e}"))?;
+            headers.insert("Authorization", value);
         }
         None => {}
     }
 
     // Multi-tenant header.
     if let Some(org_id) = org_id {
-        headers.insert("X-Scope-OrgID", org_id.parse().unwrap());
+        let value = org_id
+            .parse()
+            .map_err(|e| format!("invalid X-Scope-OrgID header value: {e}"))?;
+        headers.insert("X-Scope-OrgID", value);
     }
 
     let (ws_stream, _response) = tokio_tungstenite::connect_async(request).await?;

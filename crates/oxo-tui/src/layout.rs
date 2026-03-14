@@ -16,6 +16,8 @@ pub enum FocusTarget {
     FilterPanel,
     /// The sparkline chart.
     Sparkline,
+    /// The histogram chart (replaces sparkline in functionality).
+    Histogram,
 }
 
 /// The order in which focus cycles through components.
@@ -24,6 +26,7 @@ const FOCUS_ORDER: &[FocusTarget] = &[
     FocusTarget::LogViewer,
     FocusTarget::FilterPanel,
     FocusTarget::Sparkline,
+    FocusTarget::Histogram,
 ];
 
 /// Focus state manager.
@@ -116,12 +119,16 @@ impl FocusManager {
 pub struct AppLayout {
     /// Area for the query bar.
     pub query_bar: Rect,
+    /// Area for the tab bar (between query bar and log viewer area).
+    pub tab_bar: Rect,
     /// Area for the filter panel (may be zero-width if hidden).
     pub filter_panel: Rect,
     /// Area for the main log viewer.
     pub log_viewer: Rect,
     /// Area for the sparkline chart.
     pub sparkline: Rect,
+    /// Area for the histogram chart.
+    pub histogram: Rect,
     /// Area for the status bar.
     pub status_bar: Rect,
 }
@@ -138,27 +145,29 @@ pub struct AppLayout {
 /// │ Filter │ LogViewer   │       │ LogViewer            │
 /// │        │             │       │                      │
 /// │        ├─────────────┤       ├──────────────────────┤
-/// │        │ Sparkline   │       │ Sparkline            │
+/// │        │ Histogram   │       │ Histogram            │
 /// ├────────┴─────────────┤       ├──────────────────────┤
 /// │ StatusBar            │       │ StatusBar            │
 /// └──────────────────────┘       └──────────────────────┘
 /// ```
 pub fn compute_layout(area: Rect, filter_visible: bool) -> AppLayout {
-    // Vertical split: query_bar | middle | sparkline | status_bar.
+    // Vertical split: query_bar | tab_bar | middle | histogram | status_bar.
     let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // query bar
+            Constraint::Length(1), // tab bar
             Constraint::Min(5),    // middle (log viewer + optional filter)
-            Constraint::Length(4), // sparkline
+            Constraint::Length(5), // histogram (was 4 for sparkline)
             Constraint::Length(1), // status bar
         ])
         .split(area);
 
     let query_bar = vertical[0];
-    let middle = vertical[1];
-    let sparkline = vertical[2];
-    let status_bar = vertical[3];
+    let tab_bar = vertical[1];
+    let middle = vertical[2];
+    let histogram = vertical[3];
+    let status_bar = vertical[4];
 
     // Horizontal split of the middle area (filter panel + log viewer).
     let (filter_panel, log_viewer) = if filter_visible {
@@ -176,9 +185,11 @@ pub fn compute_layout(area: Rect, filter_visible: bool) -> AppLayout {
 
     AppLayout {
         query_bar,
+        tab_bar,
         filter_panel,
         log_viewer,
-        sparkline,
+        sparkline: histogram,
+        histogram,
         status_bar,
     }
 }

@@ -176,9 +176,19 @@ impl Component for FilterPanel {
                         match item {
                             FlatItem::Label(li) => {
                                 // Toggle expand/collapse.
-                                if let Some(group) = self.labels.get_mut(li) {
-                                    group.expanded = !group.expanded;
-                                    self.rebuild_flat_items();
+                                let (was_expanded, label_name) =
+                                    if let Some(group) = self.labels.get_mut(li) {
+                                        let was = group.expanded;
+                                        let name = group.name.clone();
+                                        group.expanded = !group.expanded;
+                                        (was, name)
+                                    } else {
+                                        return None;
+                                    };
+                                self.rebuild_flat_items();
+                                // When expanding, request fresh values from the backend.
+                                if !was_expanded {
+                                    return Some(Action::LoadLabelValues(label_name));
                                 }
                                 None
                             }
