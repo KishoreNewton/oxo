@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>oxo — Terminal-native observability that replaces your SaaS stack</title>
+  <meta name="description" content="oxo is an open-source terminal UI for log aggregation and observability. Replace Datadog, Splunk, and CloudWatch dashboards with a single binary.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- HERO                                                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<header class="hero">
+  <nav class="nav">
+    <div class="nav-logo">
+      <span class="logo-text">oxo</span>
+      <span class="logo-badge">v0.1</span>
+    </div>
+    <div class="nav-links">
+      <a href="#use-cases">Use Cases</a>
+      <a href="#wasm">WASM Plugins</a>
+      <a href="#compare">Compare</a>
+      <a href="https://github.com/KishoreNewton/oxo" target="_blank" class="nav-github">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="hero-content">
+    <div class="hero-badge">Open Source &middot; MIT Licensed &middot; Zero Cost</div>
+    <h1>Stop paying $50k/yr<br>for log dashboards.</h1>
+    <p class="hero-sub">
+      <strong>oxo</strong> is a terminal UI that connects to Loki, Elasticsearch, CloudWatch,
+      local files, Docker, and Kubernetes &mdash; with built-in alerting, analytics,
+      and WASM plugin extensibility. One 17 MB binary. No SaaS bill.
+    </p>
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn btn-primary">Get Started</a>
+      <a href="#use-cases" class="btn btn-secondary">See Use Cases</a>
+    </div>
+    <div class="hero-install">
+      <code>cargo install oxo</code>
+    </div>
+  </div>
+
+  <div class="hero-demo">
+    <div class="demo-window">
+      <div class="demo-titlebar">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="demo-title">oxo &mdash; live tail</span>
+      </div>
+      <img src="../demo/output/01-quickstart.gif" alt="oxo quick start demo" class="demo-gif" loading="lazy">
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- COST BANNER                                                     -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section class="cost-banner">
+  <div class="cost-grid">
+    <div class="cost-item">
+      <div class="cost-label">Datadog</div>
+      <div class="cost-price saas">$0.10/GB ingested</div>
+    </div>
+    <div class="cost-item">
+      <div class="cost-label">Splunk</div>
+      <div class="cost-price saas">$150/GB/day</div>
+    </div>
+    <div class="cost-item">
+      <div class="cost-label">New Relic</div>
+      <div class="cost-price saas">$0.30/GB</div>
+    </div>
+    <div class="cost-item highlight">
+      <div class="cost-label">oxo</div>
+      <div class="cost-price free">$0 forever</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- USE CASES                                                       -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section id="use-cases" class="section">
+  <div class="section-header">
+    <h2>5 reasons engineers are switching from SaaS</h2>
+    <p>Real workflows. Real savings. No vendor lock-in.</p>
+  </div>
+
+  <!-- USE CASE 1 ──────────────────────────────────────────────── -->
+  <div class="use-case" id="uc1">
+    <div class="uc-number">01</div>
+    <div class="uc-content">
+      <div class="uc-text">
+        <h3>Unified multi-backend in one pane</h3>
+        <div class="uc-vs">
+          <div class="vs-saas">
+            <span class="vs-label bad">SaaS way</span>
+            <p>Tab-switch between Datadog for APM, CloudWatch for Lambda, Splunk for security logs, Kibana for app logs. Four dashboards, four billing accounts, four query languages.</p>
+          </div>
+          <div class="vs-oxo">
+            <span class="vs-label good">oxo way</span>
+            <p>Press <kbd>b</kbd> to open the source picker. Switch between Loki, Elasticsearch, CloudWatch, Docker, Kubernetes, and local files in the same terminal session. One query language. One keybinding set. Zero context switches.</p>
+          </div>
+        </div>
+        <div class="uc-stats">
+          <div class="stat">
+            <span class="stat-num">9</span>
+            <span class="stat-label">backends supported</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">&lt;1s</span>
+            <span class="stat-label">source switch time</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">0</span>
+            <span class="stat-label">browser tabs needed</span>
+          </div>
+        </div>
+      </div>
+      <div class="uc-demo">
+        <div class="demo-window small">
+          <div class="demo-titlebar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="demo-title">multi-source tabs</span>
+          </div>
+          <img src="../demo/output/05-multi-source-tabs.gif" alt="Multi-source demo" class="demo-gif" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USE CASE 2 ──────────────────────────────────────────────── -->
+  <div class="use-case" id="uc2">
+    <div class="uc-number">02</div>
+    <div class="uc-content reverse">
+      <div class="uc-text">
+        <h3>Built-in alerting &amp; analytics &mdash; no extra tools</h3>
+        <div class="uc-vs">
+          <div class="vs-saas">
+            <span class="vs-label bad">SaaS way</span>
+            <p>Pay for Datadog + PagerDuty + Grafana Cloud + a custom anomaly detection pipeline. Configure webhook integrations. Debug alert routing rules across three different UIs.</p>
+          </div>
+          <div class="vs-oxo">
+            <span class="vs-label good">oxo way</span>
+            <p>Define alert rules in your <code>oxo.toml</code> config file. The built-in alert engine pattern-matches in real-time with cooldowns and rate windows. The analytics engine auto-detects anomalies, clusters log patterns, and surfaces trends. Press <kbd>a</kbd> for alerts, <kbd>i</kbd> for analytics, <kbd>s</kbd> for stats.</p>
+          </div>
+        </div>
+        <div class="uc-stats">
+          <div class="stat">
+            <span class="stat-num">22</span>
+            <span class="stat-label">alert engine tests</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">34</span>
+            <span class="stat-label">analytics tests</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">0</span>
+            <span class="stat-label">external dependencies</span>
+          </div>
+        </div>
+      </div>
+      <div class="uc-demo">
+        <div class="demo-window small">
+          <div class="demo-titlebar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="demo-title">analytics &amp; alerting</span>
+          </div>
+          <img src="../demo/output/06-analytics-stats.gif" alt="Analytics demo" class="demo-gif" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USE CASE 3 ──────────────────────────────────────────────── -->
+  <div class="use-case" id="uc3">
+    <div class="uc-number">03</div>
+    <div class="uc-content">
+      <div class="uc-text">
+        <h3>Investigate incidents 10x faster</h3>
+        <div class="uc-vs">
+          <div class="vs-saas">
+            <span class="vs-label bad">SaaS way</span>
+            <p>Open browser. Wait for Datadog to load. Click through 6 menus. Copy a trace ID. Open another tab. Paste. Wait for results. Scroll. Click "expand". Copy the error. Open Slack. Paste.</p>
+          </div>
+          <div class="vs-oxo">
+            <span class="vs-label good">oxo way</span>
+            <p>Type <kbd>/error</kbd> to search. Press <kbd>n</kbd> to jump between matches. Press <kbd>Enter</kbd> to inspect. Press <kbd>y</kbd> to copy. Press <kbd>m</kbd> to bookmark. Press <kbd>W</kbd> to see the trace waterfall. Press <kbd>e</kbd> to export. All without leaving your terminal.</p>
+          </div>
+        </div>
+        <div class="uc-stats">
+          <div class="stat">
+            <span class="stat-num">40+</span>
+            <span class="stat-label">keyboard shortcuts</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">0</span>
+            <span class="stat-label">mouse clicks required</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">vim</span>
+            <span class="stat-label">style navigation</span>
+          </div>
+        </div>
+      </div>
+      <div class="uc-demo">
+        <div class="demo-window small">
+          <div class="demo-titlebar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="demo-title">search &amp; investigate</span>
+          </div>
+          <img src="../demo/output/04-search-navigate.gif" alt="Search and navigate demo" class="demo-gif" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USE CASE 4 ──────────────────────────────────────────────── -->
+  <div class="use-case" id="uc4">
+    <div class="uc-number">04</div>
+    <div class="uc-content reverse">
+      <div class="uc-text">
+        <h3>Your data never leaves your infrastructure</h3>
+        <div class="uc-vs">
+          <div class="vs-saas">
+            <span class="vs-label bad">SaaS way</span>
+            <p>Ship all logs to a third-party cloud. Hope their SOC 2 compliance covers your use case. Worry about PII in log lines crossing geographic boundaries. Scramble when your vendor has a data breach.</p>
+          </div>
+          <div class="vs-oxo">
+            <span class="vs-label good">oxo way</span>
+            <p>oxo runs on <em>your machine</em> and connects to <em>your backends</em>. Logs are queried and streamed directly &mdash; nothing is proxied through a third party. Full GDPR/HIPAA compliance by default because your data never leaves your network perimeter.</p>
+          </div>
+        </div>
+        <div class="uc-stats">
+          <div class="stat">
+            <span class="stat-num">0</span>
+            <span class="stat-label">bytes sent to third parties</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">17 MB</span>
+            <span class="stat-label">total binary size</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">100%</span>
+            <span class="stat-label">on-prem / air-gapped</span>
+          </div>
+        </div>
+      </div>
+      <div class="uc-demo">
+        <div class="demo-window small">
+          <div class="demo-titlebar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="demo-title">structured logs &amp; export</span>
+          </div>
+          <img src="../demo/output/07-structured-column.gif" alt="Structured logs demo" class="demo-gif" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USE CASE 5 ──────────────────────────────────────────────── -->
+  <div class="use-case" id="uc5">
+    <div class="uc-number">05</div>
+    <div class="uc-content">
+      <div class="uc-text">
+        <h3>Extend with WASM plugins &mdash; no vendor roadmap</h3>
+        <div class="uc-vs">
+          <div class="vs-saas">
+            <span class="vs-label bad">SaaS way</span>
+            <p>File a feature request. Wait 6 months. Get told "it's on the roadmap". Pay for an enterprise tier to get custom processors. Write brittle webhook integrations. Hope the API doesn't change.</p>
+          </div>
+          <div class="vs-oxo">
+            <span class="vs-label good">oxo way</span>
+            <p>Write a WASM plugin in Rust, Go, or any language that compiles to WebAssembly. Drop it in your plugins directory. oxo's <code>PluginRegistry</code> loads it at startup. Transform log entries, filter noise, extract custom metrics &mdash; all sandboxed and safe. Ship your plugin to your team as a single <code>.wasm</code> file.</p>
+          </div>
+        </div>
+      </div>
+      <div class="uc-demo">
+        <div class="demo-window small">
+          <div class="demo-titlebar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="demo-title">advanced overlays &amp; plugins</span>
+          </div>
+          <img src="../demo/output/09-advanced-overlays.gif" alt="Advanced features demo" class="demo-gif" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- WASM PLUGIN SYSTEM                                              -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section id="wasm" class="section wasm-section">
+  <div class="section-header">
+    <h2>WASM Plugin System</h2>
+    <p>Extend oxo with sandboxed WebAssembly plugins. Write once, run anywhere.</p>
+  </div>
+
+  <div class="wasm-grid">
+    <div class="wasm-card">
+      <div class="wasm-icon">T</div>
+      <h4>Transform</h4>
+      <p>Mutate log entries before they hit the viewer. Redact PII, normalize fields, enrich with metadata.</p>
+      <pre><code><span class="kw">pub fn</span> <span class="fn">transform</span>(entry: LogEntry) -> LogEntry {
+    <span class="kw">let mut</span> e = entry;
+    <span class="cm">// Redact credit card numbers</span>
+    e.line = redact_pii(&e.line);
+    <span class="cm">// Add team ownership label</span>
+    e.labels.insert(<span class="st">"team"</span>, lookup_team(&e));
+    e
+}</code></pre>
+    </div>
+
+    <div class="wasm-card">
+      <div class="wasm-icon">F</div>
+      <h4>Filter</h4>
+      <p>Drop noisy entries before they consume buffer space. Business logic filtering that LogQL can't express.</p>
+      <pre><code><span class="kw">pub fn</span> <span class="fn">filter</span>(entry: &LogEntry) -> <span class="kw">bool</span> {
+    <span class="cm">// Drop health check noise</span>
+    <span class="kw">if</span> entry.line.contains(<span class="st">"/healthz"</span>) {
+        <span class="kw">return false</span>;
+    }
+    <span class="cm">// Keep only prod errors after hours</span>
+    is_prod(&entry) && is_after_hours()
+}</code></pre>
+    </div>
+
+    <div class="wasm-card">
+      <div class="wasm-icon">M</div>
+      <h4>Metrics</h4>
+      <p>Extract custom metrics from log lines. Feed them to the live dashboard without external tooling.</p>
+      <pre><code><span class="kw">pub fn</span> <span class="fn">extract</span>(entry: &LogEntry) -> Vec&lt;Metric&gt; {
+    <span class="kw">let</span> duration = parse_duration(&entry.line);
+    <span class="kw">let</span> status = parse_status(&entry.line);
+    <span class="kw">vec!</span>[
+        Metric::histogram(<span class="st">"latency"</span>, duration),
+        Metric::counter(<span class="st">"requests"</span>, status),
+    ]
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="wasm-arch">
+    <h4>Architecture</h4>
+    <div class="arch-flow">
+      <div class="arch-step">
+        <div class="arch-box">Log Backend</div>
+        <div class="arch-arrow">&rarr;</div>
+      </div>
+      <div class="arch-step">
+        <div class="arch-box accent">PluginRegistry</div>
+        <div class="arch-arrow">&rarr;</div>
+      </div>
+      <div class="arch-step">
+        <div class="arch-box plugin">WASM Transform</div>
+        <div class="arch-arrow">&rarr;</div>
+      </div>
+      <div class="arch-step">
+        <div class="arch-box plugin">WASM Filter</div>
+        <div class="arch-arrow">&rarr;</div>
+      </div>
+      <div class="arch-step">
+        <div class="arch-box">TUI Viewer</div>
+      </div>
+    </div>
+    <p class="arch-note">Plugins run in a Wasmtime sandbox. They cannot access the filesystem, network, or host memory. A crashing plugin cannot take down the host.</p>
+  </div>
+
+  <div class="wasm-install">
+    <h4>Enable WASM plugins</h4>
+    <pre><code><span class="cm"># Build with WASM support (uses wasmtime runtime)</span>
+cargo install oxo --features wasm
+
+<span class="cm"># Or in Cargo.toml</span>
+[features]
+default = [<span class="st">"wasm"</span>]</code></pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- COMPARISON TABLE                                                -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section id="compare" class="section">
+  <div class="section-header">
+    <h2>Feature Comparison</h2>
+    <p>oxo vs. the SaaS observability stack you're paying for.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Datadog</th>
+          <th>Splunk</th>
+          <th>Grafana Cloud</th>
+          <th class="oxo-col">oxo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Log tailing</td><td>Yes</td><td>Yes</td><td>Yes</td><td class="oxo-col">Yes</td>
+        </tr>
+        <tr>
+          <td>Multi-backend</td><td>Datadog only</td><td>Splunk only</td><td>Loki + Tempo</td><td class="oxo-col">9 backends</td>
+        </tr>
+        <tr>
+          <td>Structured log parsing</td><td>Yes</td><td>Yes</td><td>Yes</td><td class="oxo-col">Auto-detect JSON/KV</td>
+        </tr>
+        <tr>
+          <td>Alerting</td><td>$$$</td><td>$$$</td><td>Yes</td><td class="oxo-col">Built-in engine</td>
+        </tr>
+        <tr>
+          <td>Anomaly detection</td><td>Enterprise $$$$</td><td>MLTK addon</td><td>No</td><td class="oxo-col">Built-in</td>
+        </tr>
+        <tr>
+          <td>Log clustering</td><td>Enterprise</td><td>Yes</td><td>No</td><td class="oxo-col">Built-in</td>
+        </tr>
+        <tr>
+          <td>Trace correlation</td><td>Yes</td><td>Via APM</td><td>Tempo</td><td class="oxo-col">Auto-detect trace IDs</td>
+        </tr>
+        <tr>
+          <td>Plugin system</td><td>Marketplace</td><td>Splunkbase</td><td>Grafana plugins</td><td class="oxo-col">WASM (any language)</td>
+        </tr>
+        <tr>
+          <td>Keyboard-first UX</td><td>No</td><td>No</td><td>No</td><td class="oxo-col">40+ vim-style bindings</td>
+        </tr>
+        <tr>
+          <td>Works offline</td><td>No</td><td>On-prem $$$</td><td>No</td><td class="oxo-col">Yes</td>
+        </tr>
+        <tr>
+          <td>Data leaves your network</td><td>Yes</td><td>Cloud: Yes</td><td>Yes</td><td class="oxo-col">Never</td>
+        </tr>
+        <tr>
+          <td>Monthly cost (100 GB/day)</td>
+          <td class="price-bad">~$3,000</td>
+          <td class="price-bad">~$15,000</td>
+          <td class="price-bad">~$900</td>
+          <td class="oxo-col price-good">$0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- QUICK START                                                     -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section id="quickstart" class="section quickstart">
+  <div class="section-header">
+    <h2>Get started in 30 seconds</h2>
+  </div>
+
+  <div class="qs-grid">
+    <div class="qs-step">
+      <div class="qs-num">1</div>
+      <h4>Install</h4>
+      <pre><code>cargo install oxo</code></pre>
+    </div>
+    <div class="qs-step">
+      <div class="qs-num">2</div>
+      <h4>Run</h4>
+      <pre><code><span class="cm"># Demo mode (no infra needed)</span>
+oxo
+
+<span class="cm"># Connect to Loki</span>
+oxo --url http://localhost:3100
+
+<span class="cm"># Tail Docker container</span>
+oxo --backend docker
+
+<span class="cm"># Pipe any command</span>
+kubectl logs -f deploy/api | oxo</code></pre>
+    </div>
+    <div class="qs-step">
+      <div class="qs-num">3</div>
+      <h4>Configure</h4>
+      <pre><code><span class="cm"># ~/.config/oxo/config.toml</span>
+
+[[sources]]
+name = <span class="st">"Production"</span>
+type = <span class="st">"loki"</span>
+url  = <span class="st">"https://loki.prod:3100"</span>
+token = <span class="st">"bearer-token"</span>
+
+[[sources]]
+name = <span class="st">"Local Logs"</span>
+type = <span class="st">"file"</span>
+path = <span class="st">"/var/log/app/*.log"</span>
+
+[alerts]
+enabled = <span class="kw">true</span>
+
+[[alerts.rules]]
+name = <span class="st">"Error Spike"</span>
+pattern = <span class="st">"(?i)error|panic"</span>
+cooldown_secs = <span class="num">30</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- ALL DEMOS                                                       -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<section class="section demos-section">
+  <div class="section-header">
+    <h2>See it in action</h2>
+    <p>10 recorded demos covering every major feature.</p>
+  </div>
+
+  <div class="demos-grid">
+    <div class="demo-card">
+      <h4>Query &amp; Filter</h4>
+      <p>LogQL queries, autocomplete, filter sidebar</p>
+      <div class="demo-window tiny">
+        <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <img src="../demo/output/03-query-filter.gif" alt="Query demo" class="demo-gif" loading="lazy">
+      </div>
+    </div>
+    <div class="demo-card">
+      <h4>Alerting &amp; Health</h4>
+      <p>Built-in alerts, health dashboard, live metrics</p>
+      <div class="demo-window tiny">
+        <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <img src="../demo/output/08-alerting.gif" alt="Alerting demo" class="demo-gif" loading="lazy">
+      </div>
+    </div>
+    <div class="demo-card">
+      <h4>Export Workflow</h4>
+      <p>Query, search, bookmark, export &mdash; full flow</p>
+      <div class="demo-window tiny">
+        <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <img src="../demo/output/10-export-workflow.gif" alt="Export demo" class="demo-gif" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- FOOTER                                                          -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-left">
+      <span class="logo-text">oxo</span>
+      <p>Terminal-native observability.<br>MIT + Apache-2.0 dual licensed.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/KishoreNewton/oxo">GitHub</a>
+      <a href="https://github.com/KishoreNewton/oxo/tree/main/docs">Docs</a>
+      <a href="https://github.com/KishoreNewton/oxo/issues">Issues</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
