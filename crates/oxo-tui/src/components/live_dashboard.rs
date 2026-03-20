@@ -116,7 +116,7 @@ impl LiveDashboard {
         let chunks = Layout::vertical([
             Constraint::Length(5), // KPI cards
             Constraint::Length(8), // Sparklines
-            Constraint::Min(5),   // Status distribution
+            Constraint::Min(5),    // Status distribution
         ])
         .split(area);
 
@@ -129,27 +129,59 @@ impl LiveDashboard {
         ])
         .split(chunks[0]);
 
-        self.render_kpi(frame, kpi_cols[0], "Req/s", self.request_rate.current, Color::Blue);
-        self.render_kpi(frame, kpi_cols[1], "Err/s", self.error_rate.current, Color::Red);
-        self.render_kpi(frame, kpi_cols[2], "P50 (ms)", self.p50_latency.current, Color::Yellow);
-        self.render_kpi(frame, kpi_cols[3], "P95 (ms)", self.p95_latency.current, Color::Magenta);
+        self.render_kpi(
+            frame,
+            kpi_cols[0],
+            "Req/s",
+            self.request_rate.current,
+            Color::Blue,
+        );
+        self.render_kpi(
+            frame,
+            kpi_cols[1],
+            "Err/s",
+            self.error_rate.current,
+            Color::Red,
+        );
+        self.render_kpi(
+            frame,
+            kpi_cols[2],
+            "P50 (ms)",
+            self.p50_latency.current,
+            Color::Yellow,
+        );
+        self.render_kpi(
+            frame,
+            kpi_cols[3],
+            "P95 (ms)",
+            self.p95_latency.current,
+            Color::Magenta,
+        );
 
         // Sparklines row
-        let spark_cols = Layout::horizontal([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
-        .split(chunks[1]);
+        let spark_cols =
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(chunks[1]);
 
-        self.render_sparkline(frame, spark_cols[0], "Request Rate", &self.request_rate.series, Color::Blue);
-        self.render_sparkline(frame, spark_cols[1], "Error Rate", &self.error_rate.series, Color::Red);
+        self.render_sparkline(
+            frame,
+            spark_cols[0],
+            "Request Rate",
+            &self.request_rate.series,
+            Color::Blue,
+        );
+        self.render_sparkline(
+            frame,
+            spark_cols[1],
+            "Error Rate",
+            &self.error_rate.series,
+            Color::Red,
+        );
 
         // Error ratio gauge + top endpoints
-        let bottom_cols = Layout::horizontal([
-            Constraint::Percentage(30),
-            Constraint::Percentage(70),
-        ])
-        .split(chunks[2]);
+        let bottom_cols =
+            Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)])
+                .split(chunks[2]);
 
         let ratio_pct = (self.error_ratio * 100.0).min(100.0) as u16;
         let gauge_color = if ratio_pct > 10 {
@@ -177,13 +209,12 @@ impl LiveDashboard {
                         format!("  {}. ", i + 1),
                         Style::default().fg(Color::DarkGray),
                     ),
-                    Span::styled(
-                        format!("{ep:<40}"),
-                        Style::default().fg(self.theme.fg),
-                    ),
+                    Span::styled(format!("{ep:<40}"), Style::default().fg(self.theme.fg)),
                     Span::styled(
                         format!("{count:>8}"),
-                        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
                     ),
                 ])
             })
@@ -208,11 +239,7 @@ impl LiveDashboard {
         };
 
         let text = Paragraph::new(value_str)
-            .style(
-                Style::default()
-                    .fg(color)
-                    .add_modifier(Modifier::BOLD),
-            )
+            .style(Style::default().fg(color).add_modifier(Modifier::BOLD))
             .alignment(Alignment::Center);
         // Center vertically
         if inner.height > 1 {
@@ -224,7 +251,14 @@ impl LiveDashboard {
         }
     }
 
-    fn render_sparkline(&self, frame: &mut Frame, area: Rect, title: &str, data: &[u64], color: Color) {
+    fn render_sparkline(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        title: &str,
+        data: &[u64],
+        color: Color,
+    ) {
         let block = Block::default().borders(Borders::ALL).title(title);
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -244,11 +278,8 @@ impl LiveDashboard {
     }
 
     fn render_rates(&self, frame: &mut Frame, area: Rect) {
-        let chunks = Layout::vertical([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
-        .split(area);
+        let chunks =
+            Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).split(area);
 
         self.render_metric_detail(frame, chunks[0], &self.request_rate, Color::Blue);
         self.render_metric_detail(frame, chunks[1], &self.error_rate, Color::Red);
@@ -268,11 +299,7 @@ impl LiveDashboard {
     }
 
     fn render_errors(&self, frame: &mut Frame, area: Rect) {
-        let chunks = Layout::vertical([
-            Constraint::Length(8),
-            Constraint::Min(5),
-        ])
-        .split(area);
+        let chunks = Layout::vertical([Constraint::Length(8), Constraint::Min(5)]).split(area);
 
         self.render_metric_detail(frame, chunks[0], &self.error_rate, Color::Red);
 
@@ -297,32 +324,42 @@ impl LiveDashboard {
                 .collect();
 
             let bar_chart = BarChart::default()
-                .block(Block::default().borders(Borders::ALL).title("Status Distribution"))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Status Distribution"),
+                )
                 .data(BarGroup::default().bars(&bars))
                 .bar_width(8)
                 .bar_gap(2);
             frame.render_widget(bar_chart, chunks[1]);
         } else {
             let msg = Paragraph::new("No status data")
-                .block(Block::default().borders(Borders::ALL).title("Status Distribution"))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Status Distribution"),
+                )
                 .style(Style::default().fg(Color::DarkGray))
                 .alignment(Alignment::Center);
             frame.render_widget(msg, chunks[1]);
         }
     }
 
-    fn render_metric_detail(&self, frame: &mut Frame, area: Rect, metric: &DashboardMetric, color: Color) {
+    fn render_metric_detail(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        metric: &DashboardMetric,
+        color: Color,
+    ) {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(format!("{} ({})", metric.name, metric.unit));
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        let cols = Layout::horizontal([
-            Constraint::Length(20),
-            Constraint::Min(10),
-        ])
-        .split(inner);
+        let cols = Layout::horizontal([Constraint::Length(20), Constraint::Min(10)]).split(inner);
 
         // Stats column
         let stats = vec![
@@ -335,15 +372,24 @@ impl LiveDashboard {
             ]),
             Line::from(vec![
                 Span::raw("Min:     "),
-                Span::styled(format!("{:.2}", metric.min), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{:.2}", metric.min),
+                    Style::default().fg(Color::Gray),
+                ),
             ]),
             Line::from(vec![
                 Span::raw("Max:     "),
-                Span::styled(format!("{:.2}", metric.max), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{:.2}", metric.max),
+                    Style::default().fg(Color::Gray),
+                ),
             ]),
             Line::from(vec![
                 Span::raw("Avg:     "),
-                Span::styled(format!("{:.2}", metric.avg), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{:.2}", metric.avg),
+                    Style::default().fg(Color::Gray),
+                ),
             ]),
         ];
         let stats_para = Paragraph::new(stats);
@@ -384,10 +430,22 @@ impl Component for LiveDashboard {
                 };
                 Some(Action::Noop)
             }
-            KeyCode::Char('1') => { self.active_tab = DashboardTab::Overview; Some(Action::Noop) }
-            KeyCode::Char('2') => { self.active_tab = DashboardTab::Rates; Some(Action::Noop) }
-            KeyCode::Char('3') => { self.active_tab = DashboardTab::Latency; Some(Action::Noop) }
-            KeyCode::Char('4') => { self.active_tab = DashboardTab::Errors; Some(Action::Noop) }
+            KeyCode::Char('1') => {
+                self.active_tab = DashboardTab::Overview;
+                Some(Action::Noop)
+            }
+            KeyCode::Char('2') => {
+                self.active_tab = DashboardTab::Rates;
+                Some(Action::Noop)
+            }
+            KeyCode::Char('3') => {
+                self.active_tab = DashboardTab::Latency;
+                Some(Action::Noop)
+            }
+            KeyCode::Char('4') => {
+                self.active_tab = DashboardTab::Errors;
+                Some(Action::Noop)
+            }
             _ => None,
         }
     }
@@ -410,7 +468,7 @@ impl Component for LiveDashboard {
 
         let chunks = Layout::vertical([
             Constraint::Length(1), // Tabs
-            Constraint::Min(5),   // Content
+            Constraint::Min(5),    // Content
         ])
         .split(inner);
 

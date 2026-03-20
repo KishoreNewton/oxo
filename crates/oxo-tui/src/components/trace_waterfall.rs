@@ -25,8 +25,7 @@ use oxo_core::trace::TraceDetector;
 // ── Duration extraction regex ────────────────────────────────────────────
 
 static DURATION_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:duration|took|latency|elapsed)[=: ]+(\d+(?:\.\d+)?)\s*(?:ms|s)")
-        .unwrap()
+    Regex::new(r"(?i)(?:duration|took|latency|elapsed)[=: ]+(\d+(?:\.\d+)?)\s*(?:ms|s)").unwrap()
 });
 
 // ── Data types ───────────────────────────────────────────────────────────
@@ -122,16 +121,13 @@ impl TraceWaterfall {
 
             let duration_ms = extract_duration(&entry.line);
 
-            groups
-                .entry(trace_id.id)
-                .or_default()
-                .push(TraceSpan {
-                    service,
-                    timestamp: entry.timestamp,
-                    line: entry.line.clone(),
-                    level,
-                    duration_ms,
-                });
+            groups.entry(trace_id.id).or_default().push(TraceSpan {
+                service,
+                timestamp: entry.timestamp,
+                line: entry.line.clone(),
+                level,
+                duration_ms,
+            });
         }
 
         // Build TraceView list: sort spans, compute durations, filter 2+.
@@ -145,8 +141,7 @@ impl TraceWaterfall {
 
                 let first = spans.first().unwrap().timestamp;
                 let last = spans.last().unwrap().timestamp;
-                let total_duration_ms =
-                    (last - first).num_milliseconds().max(0) as f64;
+                let total_duration_ms = (last - first).num_milliseconds().max(0) as f64;
 
                 Some(TraceView {
                     trace_id: id,
@@ -208,10 +203,7 @@ impl TraceWaterfall {
                             .add_modifier(Modifier::BOLD),
                     ))
                 } else {
-                    Line::from(Span::styled(
-                        text,
-                        Style::default().fg(self.theme.fg),
-                    ))
+                    Line::from(Span::styled(text, Style::default().fg(self.theme.fg)))
                 }
             })
             .collect();
@@ -254,8 +246,7 @@ impl TraceWaterfall {
             .map(|span| {
                 let svc = format!("{:<10}", truncate_str(&span.service, 10));
 
-                let offset_ms =
-                    (span.timestamp - first_ts).num_milliseconds().max(0) as f64;
+                let offset_ms = (span.timestamp - first_ts).num_milliseconds().max(0) as f64;
                 let dur_ms = span.duration_ms.unwrap_or(0.0);
 
                 // How much of the bar width this span occupies.
@@ -302,10 +293,7 @@ impl TraceWaterfall {
                             .fg(self.theme.warn)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(
-                        summary,
-                        Style::default().fg(self.theme.fg_dim),
-                    ),
+                    Span::styled(summary, Style::default().fg(self.theme.fg_dim)),
                 ])
             })
             .collect();
@@ -342,8 +330,7 @@ impl Component for TraceWaterfall {
             // Switch selected trace (left panel).
             KeyCode::Tab => {
                 if !self.traces.is_empty() {
-                    self.selected_trace =
-                        (self.selected_trace + 1) % self.traces.len();
+                    self.selected_trace = (self.selected_trace + 1) % self.traces.len();
                     self.scroll = 0;
                 }
                 Some(Action::Noop)
@@ -373,10 +360,8 @@ impl Component for TraceWaterfall {
         let popup_width = ((area.width as u32 * 80 / 100) as u16).max(50);
         let popup_height = ((area.height as u32 * 80 / 100) as u16).max(16);
 
-        let vertical =
-            Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
-        let horizontal =
-            Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
+        let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
+        let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
         let [vert_area] = vertical.areas(area);
         let [popup_area] = horizontal.areas(vert_area);
 
@@ -406,11 +391,8 @@ impl Component for TraceWaterfall {
         let footer_area = chunks[1];
 
         // Split content into left (30%) and right (70%).
-        let panels = Layout::horizontal([
-            Constraint::Percentage(30),
-            Constraint::Percentage(70),
-        ])
-        .split(content_area);
+        let panels = Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(70)])
+            .split(content_area);
 
         self.render_trace_list(frame, panels[0]);
         self.render_waterfall(frame, panels[1]);

@@ -12,7 +12,7 @@ use tracing::{debug, warn};
 
 use oxo_core::LogEntry;
 
-use crate::action::{execute_action, AlertContext};
+use crate::action::{AlertContext, execute_action};
 use crate::config::{AlertConfig, AlertRule};
 use crate::matcher::CompiledRule;
 use crate::state::RuleState;
@@ -354,7 +354,10 @@ mod tests {
         // Only the first should fire; the second is within cooldown.
         let evt = event_rx.recv().await.expect("should receive first event");
         assert!(matches!(evt, AlertEvent::Fired { .. }));
-        assert!(event_rx.try_recv().is_err(), "second should be suppressed by cooldown");
+        assert!(
+            event_rx.try_recv().is_err(),
+            "second should be suppressed by cooldown"
+        );
     }
 
     #[tokio::test]

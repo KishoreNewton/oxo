@@ -80,7 +80,13 @@ impl IncidentTimeline {
     }
 
     /// Add an auto-detected anomaly event.
-    pub fn add_anomaly(&mut self, timestamp: String, unix_ts: i64, description: String, source: String) {
+    pub fn add_anomaly(
+        &mut self,
+        timestamp: String,
+        unix_ts: i64,
+        description: String,
+        source: String,
+    ) {
         self.add_event(IncidentEvent {
             timestamp,
             unix_ts,
@@ -172,9 +178,7 @@ impl Component for IncidentTimeline {
                 self.detail_visible = !self.detail_visible;
                 Some(Action::Noop)
             }
-            KeyCode::Char('m') => {
-                Some(Action::MarkIncident("Manual incident mark".to_string()))
-            }
+            KeyCode::Char('m') => Some(Action::MarkIncident("Manual incident mark".to_string())),
             KeyCode::Char('c') => {
                 self.clear();
                 Some(Action::Noop)
@@ -213,11 +217,8 @@ impl Component for IncidentTimeline {
         }
 
         let chunks = if self.detail_visible {
-            Layout::horizontal([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
-            .split(inner)
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(inner)
         } else {
             Layout::horizontal([Constraint::Percentage(100)]).split(inner)
         };
@@ -241,20 +242,16 @@ impl Component for IncidentTimeline {
                             format!(" [{icon}] "),
                             Style::default().fg(color).add_modifier(Modifier::BOLD),
                         ),
-                        Span::styled(
-                            &event.timestamp,
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                        Span::styled(
-                            auto_tag,
-                            Style::default().fg(Color::DarkGray),
-                        ),
+                        Span::styled(&event.timestamp, Style::default().fg(Color::DarkGray)),
+                        Span::styled(auto_tag, Style::default().fg(Color::DarkGray)),
                     ]),
                     Line::from(vec![
                         Span::raw("     "),
                         Span::styled(
                             &event.title,
-                            Style::default().fg(self.theme.fg).add_modifier(Modifier::BOLD),
+                            Style::default()
+                                .fg(self.theme.fg)
+                                .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
                             format!("  [{}]", event.source),
@@ -289,7 +286,12 @@ impl Component for IncidentTimeline {
                     Line::from(""),
                     Line::from(vec![
                         Span::styled("  Severity: ", Style::default().fg(Color::DarkGray)),
-                        Span::styled(severity_str, Style::default().fg(severity_color).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            severity_str,
+                            Style::default()
+                                .fg(severity_color)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                     ]),
                     Line::from(vec![
                         Span::styled("  Time:     ", Style::default().fg(Color::DarkGray)),
@@ -305,16 +307,21 @@ impl Component for IncidentTimeline {
                     ]),
                     Line::from(vec![
                         Span::styled("  Type:     ", Style::default().fg(Color::DarkGray)),
-                        Span::raw(if event.auto_detected { "Auto-detected" } else { "Manual" }),
+                        Span::raw(if event.auto_detected {
+                            "Auto-detected"
+                        } else {
+                            "Manual"
+                        }),
                     ]),
                     Line::from(""),
-                    Line::from(Span::styled("  Description:", Style::default().fg(Color::DarkGray))),
+                    Line::from(Span::styled(
+                        "  Description:",
+                        Style::default().fg(Color::DarkGray),
+                    )),
                     Line::from(format!("  {}", event.description)),
                 ];
 
-                let detail_block = Block::default()
-                    .borders(Borders::LEFT)
-                    .title(" Details ");
+                let detail_block = Block::default().borders(Borders::LEFT).title(" Details ");
                 let detail_para = Paragraph::new(detail)
                     .block(detail_block)
                     .wrap(Wrap { trim: false });

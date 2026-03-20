@@ -74,11 +74,9 @@ impl CorrelationEngine {
             .max()
             .unwrap_or_else(Utc::now);
 
-        let comparison_start =
-            max_ts - TimeDelta::minutes(self.comparison_minutes as i64);
+        let comparison_start = max_ts - TimeDelta::minutes(self.comparison_minutes as i64);
         let baseline_end = comparison_start;
-        let baseline_start =
-            baseline_end - TimeDelta::minutes(self.baseline_minutes as i64);
+        let baseline_start = baseline_end - TimeDelta::minutes(self.baseline_minutes as i64);
 
         // Accumulate counts per label+value in each window.
         let mut baseline_counts: HashMap<(String, String), (usize, usize)> = HashMap::new();
@@ -193,11 +191,7 @@ mod tests {
     use chrono::DateTime;
     use std::collections::BTreeMap;
 
-    fn make_entry(
-        ts: DateTime<Utc>,
-        level: &str,
-        service: &str,
-    ) -> LogEntry {
+    fn make_entry(ts: DateTime<Utc>, level: &str, service: &str) -> LogEntry {
         let mut labels = BTreeMap::new();
         labels.insert("level".to_string(), level.to_string());
         labels.insert("service".to_string(), service.to_string());

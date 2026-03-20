@@ -30,9 +30,13 @@ use crate::components::filter_panel::FilterPanel;
 use crate::components::health_dashboard::HealthDashboard;
 use crate::components::help::HelpOverlay;
 use crate::components::histogram::Histogram;
+use crate::components::incident_timeline::IncidentTimeline;
+use crate::components::live_dashboard::LiveDashboard;
 use crate::components::log_viewer::LogViewer;
+use crate::components::nl_query::NlQuery;
 use crate::components::query_bar::QueryBar;
 use crate::components::regex_playground::RegexPlayground;
+use crate::components::saved_views::SavedViewsPanel;
 use crate::components::search_bar::SearchBar;
 use crate::components::source_picker::{SourceEntry, SourcePicker};
 use crate::components::sparkline::SparklineChart;
@@ -41,11 +45,6 @@ use crate::components::status_bar::{ConnectionState, StatusBar};
 use crate::components::tab_bar::TabBar;
 use crate::components::time_picker::TimePicker;
 use crate::components::trace_waterfall::TraceWaterfall;
-use crate::components::incident_timeline::IncidentTimeline;
-use crate::components::live_dashboard::LiveDashboard;
-use crate::components::nl_query::NlQuery;
-use crate::components::saved_views::SavedViewsPanel;
-use crate::views::SavedViews;
 use crate::event::{EventReader, TerminalEvent};
 use crate::export::{self, ExportFormat};
 use crate::keymap::{self, InputMode};
@@ -54,6 +53,7 @@ use crate::saved_queries::SavedQueries;
 use crate::session::Session;
 use crate::terminal::{self, Tui};
 use crate::theme::Theme;
+use crate::views::SavedViews;
 
 /// Factory function that creates a backend by name and connection config.
 ///
@@ -419,19 +419,27 @@ impl App {
                 if self.nl_query.is_visible() {
                     self.nl_query.handle_key(key).unwrap_or(Action::Noop)
                 } else if self.regex_playground.is_visible() {
-                    self.regex_playground.handle_key(key).unwrap_or(Action::Noop)
+                    self.regex_playground
+                        .handle_key(key)
+                        .unwrap_or(Action::Noop)
                 } else if self.live_dashboard.is_visible() {
                     self.live_dashboard.handle_key(key).unwrap_or(Action::Noop)
                 } else if self.incident_timeline.is_visible() {
-                    self.incident_timeline.handle_key(key).unwrap_or(Action::Noop)
+                    self.incident_timeline
+                        .handle_key(key)
+                        .unwrap_or(Action::Noop)
                 } else if self.saved_views_panel.is_visible() {
-                    self.saved_views_panel.handle_key(key).unwrap_or(Action::Noop)
+                    self.saved_views_panel
+                        .handle_key(key)
+                        .unwrap_or(Action::Noop)
                 } else if self.diff_view.is_visible() {
                     self.diff_view.handle_key(key).unwrap_or(Action::Noop)
                 } else if self.trace_waterfall.is_visible() {
                     self.trace_waterfall.handle_key(key).unwrap_or(Action::Noop)
                 } else if self.health_dashboard.is_visible() {
-                    self.health_dashboard.handle_key(key).unwrap_or(Action::Noop)
+                    self.health_dashboard
+                        .handle_key(key)
+                        .unwrap_or(Action::Noop)
                 } else if self.alert_panel.is_visible() {
                     self.alert_panel.handle_key(key).unwrap_or(Action::Noop)
                 } else if self.analytics_panel.is_visible() {
@@ -706,8 +714,7 @@ impl App {
                 self.alert_panel
                     .push_alert(chrono::Utc::now(), rule_name.clone(), message.clone());
                 if !self.alert_muted {
-                    self.notification =
-                        Some((format!("Alert: {rule_name}"), true, 20));
+                    self.notification = Some((format!("Alert: {rule_name}"), true, 20));
                 }
             }
             Action::ToggleAlertPanel => {
@@ -768,10 +775,11 @@ impl App {
             Action::DiffQueryLeft(query) => {
                 // Execute query and feed results to left pane.
                 let query = query.clone();
-                let range = TimeRange::last(chrono::Duration::minutes(self.time_range_minutes as i64));
+                let range =
+                    TimeRange::last(chrono::Duration::minutes(self.time_range_minutes as i64));
                 let limit = self.max_buffer_size;
                 // Store for async execution.
-                self.notification = Some((format!("Diff: querying left..."), false, 8));
+                self.notification = Some(("Diff: querying left...".to_string(), false, 8));
                 // We can't do async in dispatch, so we'll do a best-effort with current buffer.
                 // In a full implementation this would use pending_diff_query pattern.
                 let entries: Vec<LogEntry> = self
@@ -800,7 +808,8 @@ impl App {
             Action::ToggleSavedViews => {
                 self.saved_views_panel.toggle();
                 if self.saved_views_panel.is_visible() {
-                    self.saved_views_panel.set_views(self.saved_views.views.clone());
+                    self.saved_views_panel
+                        .set_views(self.saved_views.views.clone());
                 }
             }
 
@@ -947,8 +956,7 @@ impl App {
                 if self.health_dashboard.is_visible() {
                     self.health_dashboard.entries_received =
                         self.active_state().log_buffer.len() as u64;
-                    self.health_dashboard.entries_per_second =
-                        self.sparkline.current_rate() as f64;
+                    self.health_dashboard.entries_per_second = self.sparkline.current_rate() as f64;
                 }
                 // Decrement notification timer.
                 if let Some((_, _, ref mut ticks)) = self.notification {
@@ -1206,11 +1214,7 @@ impl App {
     /// Save the current session state for restoration on next launch.
     fn save_session(&self) {
         let session = Session {
-            tab_queries: self
-                .tabs_state
-                .iter()
-                .map(|ts| ts.query.clone())
-                .collect(),
+            tab_queries: self.tabs_state.iter().map(|ts| ts.query.clone()).collect(),
             active_tab: self.active_tab,
             time_range_minutes: self.time_range_minutes,
             active_source: None,

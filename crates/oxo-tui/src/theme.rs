@@ -175,14 +175,14 @@ impl Theme {
     /// Solarized Dark theme.
     pub fn solarized_dark() -> Self {
         Self {
-            bg: Color::Rgb(0x00, 0x2b, 0x36),       // base03
-            fg: Color::Rgb(0x83, 0x94, 0x96),        // base0
-            fg_dim: Color::Rgb(0x58, 0x6e, 0x75),    // base01
-            accent: Color::Rgb(0x26, 0x8b, 0xd2),    // blue
-            error: Color::Rgb(0xdc, 0x32, 0x2f),     // red
-            warn: Color::Rgb(0xb5, 0x89, 0x00),      // yellow
-            info: Color::Rgb(0x85, 0x99, 0x00),      // green
-            debug: Color::Rgb(0x2a, 0xa1, 0x98),     // cyan
+            bg: Color::Rgb(0x00, 0x2b, 0x36),     // base03
+            fg: Color::Rgb(0x83, 0x94, 0x96),     // base0
+            fg_dim: Color::Rgb(0x58, 0x6e, 0x75), // base01
+            accent: Color::Rgb(0x26, 0x8b, 0xd2), // blue
+            error: Color::Rgb(0xdc, 0x32, 0x2f),  // red
+            warn: Color::Rgb(0xb5, 0x89, 0x00),   // yellow
+            info: Color::Rgb(0x85, 0x99, 0x00),   // green
+            debug: Color::Rgb(0x2a, 0xa1, 0x98),  // cyan
             border_focused: Color::Rgb(0x26, 0x8b, 0xd2),
             border_unfocused: Color::Rgb(0x58, 0x6e, 0x75),
             status_bg: Color::Rgb(0x07, 0x36, 0x42), // base02
@@ -195,14 +195,14 @@ impl Theme {
     /// Dracula theme.
     pub fn dracula() -> Self {
         Self {
-            bg: Color::Rgb(0x28, 0x2a, 0x36),       // background
-            fg: Color::Rgb(0xf8, 0xf8, 0xf2),       // foreground
-            fg_dim: Color::Rgb(0x62, 0x72, 0xa4),    // comment
-            accent: Color::Rgb(0xbd, 0x93, 0xf9),    // purple
-            error: Color::Rgb(0xff, 0x55, 0x55),     // red
-            warn: Color::Rgb(0xff, 0xb8, 0x6c),      // orange
-            info: Color::Rgb(0x50, 0xfa, 0x7b),      // green
-            debug: Color::Rgb(0x8b, 0xe9, 0xfd),     // cyan
+            bg: Color::Rgb(0x28, 0x2a, 0x36),     // background
+            fg: Color::Rgb(0xf8, 0xf8, 0xf2),     // foreground
+            fg_dim: Color::Rgb(0x62, 0x72, 0xa4), // comment
+            accent: Color::Rgb(0xbd, 0x93, 0xf9), // purple
+            error: Color::Rgb(0xff, 0x55, 0x55),  // red
+            warn: Color::Rgb(0xff, 0xb8, 0x6c),   // orange
+            info: Color::Rgb(0x50, 0xfa, 0x7b),   // green
+            debug: Color::Rgb(0x8b, 0xe9, 0xfd),  // cyan
             border_focused: Color::Rgb(0xbd, 0x93, 0xf9),
             border_unfocused: Color::Rgb(0x62, 0x72, 0xa4),
             status_bg: Color::Rgb(0x44, 0x47, 0x5a), // current line
@@ -215,14 +215,14 @@ impl Theme {
     /// Monokai theme.
     pub fn monokai() -> Self {
         Self {
-            bg: Color::Rgb(0x27, 0x28, 0x22),       // background
-            fg: Color::Rgb(0xf8, 0xf8, 0xf2),       // foreground
-            fg_dim: Color::Rgb(0x75, 0x71, 0x5e),    // comment
-            accent: Color::Rgb(0xa6, 0xe2, 0x2e),    // green
-            error: Color::Rgb(0xf9, 0x26, 0x72),     // pink/red
-            warn: Color::Rgb(0xe6, 0xdb, 0x74),      // yellow
-            info: Color::Rgb(0xa6, 0xe2, 0x2e),      // green
-            debug: Color::Rgb(0x66, 0xd9, 0xef),     // blue/cyan
+            bg: Color::Rgb(0x27, 0x28, 0x22),     // background
+            fg: Color::Rgb(0xf8, 0xf8, 0xf2),     // foreground
+            fg_dim: Color::Rgb(0x75, 0x71, 0x5e), // comment
+            accent: Color::Rgb(0xa6, 0xe2, 0x2e), // green
+            error: Color::Rgb(0xf9, 0x26, 0x72),  // pink/red
+            warn: Color::Rgb(0xe6, 0xdb, 0x74),   // yellow
+            info: Color::Rgb(0xa6, 0xe2, 0x2e),   // green
+            debug: Color::Rgb(0x66, 0xd9, 0xef),  // blue/cyan
             border_focused: Color::Rgb(0xa6, 0xe2, 0x2e),
             border_unfocused: Color::Rgb(0x75, 0x71, 0x5e),
             status_bg: Color::Rgb(0x3e, 0x3d, 0x32), // line highlight
@@ -238,11 +238,11 @@ impl Theme {
             bg: Color::Rgb(0xfa, 0xfa, 0xfa),
             fg: Color::Rgb(0x38, 0x38, 0x38),
             fg_dim: Color::Rgb(0xa0, 0xa0, 0xa0),
-            accent: Color::Rgb(0x00, 0x5f, 0xaf),    // blue
-            error: Color::Rgb(0xd7, 0x00, 0x00),     // red
-            warn: Color::Rgb(0xaf, 0x87, 0x00),       // dark yellow
-            info: Color::Rgb(0x00, 0x87, 0x00),       // green
-            debug: Color::Rgb(0x00, 0x5f, 0x87),      // teal
+            accent: Color::Rgb(0x00, 0x5f, 0xaf), // blue
+            error: Color::Rgb(0xd7, 0x00, 0x00),  // red
+            warn: Color::Rgb(0xaf, 0x87, 0x00),   // dark yellow
+            info: Color::Rgb(0x00, 0x87, 0x00),   // green
+            debug: Color::Rgb(0x00, 0x5f, 0x87),  // teal
             border_focused: Color::Rgb(0x00, 0x5f, 0xaf),
             border_unfocused: Color::Rgb(0xc0, 0xc0, 0xc0),
             status_bg: Color::Rgb(0xe0, 0xe0, 0xe0),

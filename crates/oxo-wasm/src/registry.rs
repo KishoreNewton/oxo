@@ -74,10 +74,7 @@ impl PluginRegistry {
             }
         }
 
-        tracing::info!(
-            count = self.plugins.len(),
-            "loaded plugins"
-        );
+        tracing::info!(count = self.plugins.len(), "loaded plugins");
 
         Ok(())
     }

@@ -166,23 +166,21 @@ fn split_selector(input: &str) -> (String, &str) {
             } else if c == quote_char {
                 in_quote = false;
             }
-        } else {
-            if c == '"' || c == '\'' {
-                in_quote = true;
-                quote_char = c;
-            } else if c == '{' {
-                depth += 1;
-            } else if c == '}' {
-                depth -= 1;
-                if depth == 0 {
-                    // Selector ends right after this '}'.
-                    let byte_end = chars[..=i].iter().collect::<String>().len();
-                    let selector = &input[..byte_end];
-                    let rest = input[byte_end..].trim_start();
-                    // Strip a leading '|' from the rest.
-                    let rest = rest.strip_prefix('|').unwrap_or(rest).trim_start();
-                    return (selector.to_string(), rest);
-                }
+        } else if c == '"' || c == '\'' {
+            in_quote = true;
+            quote_char = c;
+        } else if c == '{' {
+            depth += 1;
+        } else if c == '}' {
+            depth -= 1;
+            if depth == 0 {
+                // Selector ends right after this '}'.
+                let byte_end = chars[..=i].iter().collect::<String>().len();
+                let selector = &input[..byte_end];
+                let rest = input[byte_end..].trim_start();
+                // Strip a leading '|' from the rest.
+                let rest = rest.strip_prefix('|').unwrap_or(rest).trim_start();
+                return (selector.to_string(), rest);
             }
         }
         i += 1;
@@ -616,9 +614,11 @@ fn apply_stage(stage: &PipelineStage, entries: &[LogEntry]) -> Vec<LogEntry> {
         PipelineStage::LabelFilter { label, op, value } => {
             apply_label_filter(entries, label, op, value)
         }
-        PipelineStage::LineFilter { pattern, negate, regex } => {
-            apply_line_filter(entries, pattern, *negate, *regex)
-        }
+        PipelineStage::LineFilter {
+            pattern,
+            negate,
+            regex,
+        } => apply_line_filter(entries, pattern, *negate, *regex),
         PipelineStage::LineFormat { template } => apply_line_format(entries, template),
         PipelineStage::LabelDrop { labels } => apply_label_drop(entries, labels),
         PipelineStage::LabelKeep { labels } => apply_label_keep(entries, labels),
@@ -770,19 +770,20 @@ fn apply_label_filter(
             match op {
                 FilterOp::Eq => actual == value,
                 FilterOp::Neq => actual != value,
-                FilterOp::Re => compiled_re
-                    .as_ref()
-                    .map_or(false, |re| re.is_match(actual)),
-                FilterOp::Nre => compiled_re
-                    .as_ref()
-                    .map_or(true, |re| !re.is_match(actual)),
+                FilterOp::Re => compiled_re.as_ref().is_some_and(|re| re.is_match(actual)),
+                FilterOp::Nre => compiled_re.as_ref().is_none_or(|re| !re.is_match(actual)),
             }
         })
         .cloned()
         .collect()
 }
 
-fn apply_line_filter(entries: &[LogEntry], pattern: &str, negate: bool, is_regex: bool) -> Vec<LogEntry> {
+fn apply_line_filter(
+    entries: &[LogEntry],
+    pattern: &str,
+    negate: bool,
+    is_regex: bool,
+) -> Vec<LogEntry> {
     let compiled_re = if is_regex {
         Regex::new(pattern).ok()
     } else {
@@ -847,8 +848,7 @@ fn apply_label_keep(entries: &[LogEntry], labels: &[String]) -> Vec<LogEntry> {
         .iter()
         .map(|entry| {
             let mut e = entry.clone();
-            let keep: std::collections::HashSet<&str> =
-                labels.iter().map(|s| s.as_str()).collect();
+            let keep: std::collections::HashSet<&str> = labels.iter().map(|s| s.as_str()).collect();
             e.labels = e
                 .labels
                 .into_iter()
@@ -1052,18 +1052,29 @@ mod tests {
         };
         let result = pipeline.apply(&entries);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].labels.get("msg").map(|s| s.as_str()), Some("hello"));
-        assert_eq!(result[0].labels.get("level").map(|s| s.as_str()), Some("info"));
+        assert_eq!(
+            result[0].labels.get("msg").map(|s| s.as_str()),
+            Some("hello")
+        );
+        assert_eq!(
+            result[0].labels.get("level").map(|s| s.as_str()),
+            Some("info")
+        );
     }
 
     #[test]
     fn test_apply_logfmt_stage() {
-        let entries = vec![make_entry("level=error msg=\"connection failed\" duration=42ms")];
+        let entries = vec![make_entry(
+            "level=error msg=\"connection failed\" duration=42ms",
+        )];
         let pipeline = Pipeline {
             stages: vec![PipelineStage::Logfmt],
         };
         let result = pipeline.apply(&entries);
-        assert_eq!(result[0].labels.get("level").map(|s| s.as_str()), Some("error"));
+        assert_eq!(
+            result[0].labels.get("level").map(|s| s.as_str()),
+            Some("error")
+        );
         assert_eq!(
             result[0].labels.get("msg").map(|s| s.as_str()),
             Some("connection failed")
@@ -1151,9 +1162,18 @@ mod tests {
             }],
         };
         let result = pipeline.apply(&entries);
-        assert_eq!(result[0].labels.get("ip").map(|s| s.as_str()), Some("192.168.1.1"));
-        assert_eq!(result[0].labels.get("method").map(|s| s.as_str()), Some("GET"));
-        assert_eq!(result[0].labels.get("status").map(|s| s.as_str()), Some("200"));
+        assert_eq!(
+            result[0].labels.get("ip").map(|s| s.as_str()),
+            Some("192.168.1.1")
+        );
+        assert_eq!(
+            result[0].labels.get("method").map(|s| s.as_str()),
+            Some("GET")
+        );
+        assert_eq!(
+            result[0].labels.get("status").map(|s| s.as_str()),
+            Some("200")
+        );
     }
 
     #[test]
@@ -1244,7 +1264,10 @@ mod tests {
         let input = r#"{} | sample 10"#;
         let (_, pipeline) = Pipeline::parse(input).unwrap();
         assert_eq!(pipeline.stages.len(), 1);
-        assert!(matches!(pipeline.stages[0], PipelineStage::Sample { n: 10 }));
+        assert!(matches!(
+            pipeline.stages[0],
+            PipelineStage::Sample { n: 10 }
+        ));
     }
 
     #[test]
@@ -1252,7 +1275,10 @@ mod tests {
         let input = r#"{} | limit 100"#;
         let (_, pipeline) = Pipeline::parse(input).unwrap();
         assert_eq!(pipeline.stages.len(), 1);
-        assert!(matches!(pipeline.stages[0], PipelineStage::Limit { n: 100 }));
+        assert!(matches!(
+            pipeline.stages[0],
+            PipelineStage::Limit { n: 100 }
+        ));
     }
 
     #[test]

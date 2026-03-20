@@ -220,10 +220,7 @@ mod tests {
         }
     }
 
-    fn make_entry_with_labels(
-        line: &str,
-        labels: BTreeMap<String, String>,
-    ) -> LogEntry {
+    fn make_entry_with_labels(line: &str, labels: BTreeMap<String, String>) -> LogEntry {
         LogEntry {
             timestamp: Utc::now(),
             labels,
@@ -238,7 +235,9 @@ mod tests {
         let entry = make_entry("request completed duration=45ms status=200");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "duration_ms" && (m.value - 45.0).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "duration_ms" && (m.value - 45.0).abs() < f64::EPSILON),
             "should extract duration_ms=45"
         );
     }
@@ -249,7 +248,9 @@ mod tests {
         let entry = make_entry("latency: 12.5 ms");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "duration_ms" && (m.value - 12.5).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "duration_ms" && (m.value - 12.5).abs() < f64::EPSILON),
             "should extract duration_ms=12.5"
         );
     }
@@ -260,7 +261,9 @@ mod tests {
         let entry = make_entry("status_code=404 method=GET path=/api/users");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "status_code" && (m.value - 404.0).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "status_code" && (m.value - 404.0).abs() < f64::EPSILON),
             "should extract status_code=404"
         );
     }
@@ -271,7 +274,9 @@ mod tests {
         let entry = make_entry("response sent bytes=2048 path=/download");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "bytes" && (m.value - 2048.0).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "bytes" && (m.value - 2048.0).abs() < f64::EPSILON),
             "should extract bytes=2048"
         );
     }
@@ -282,7 +287,9 @@ mod tests {
         let entry = make_entry("processed items=42 in batch");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "count" && (m.value - 42.0).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "count" && (m.value - 42.0).abs() < f64::EPSILON),
             "should extract count=42"
         );
     }
@@ -292,7 +299,11 @@ mod tests {
         let ext = MetricsExtractor::new();
         let entry = make_entry("duration=100ms status=200 bytes=512");
         let metrics = ext.extract(&entry);
-        assert!(metrics.len() >= 3, "should extract at least 3 metrics, got {}", metrics.len());
+        assert!(
+            metrics.len() >= 3,
+            "should extract at least 3 metrics, got {}",
+            metrics.len()
+        );
     }
 
     #[test]
@@ -306,17 +317,15 @@ mod tests {
     #[test]
     fn custom_pattern() {
         let mut ext = MetricsExtractor::new();
-        ext.add_pattern(
-            "temperature",
-            r"temp[=:]\s*(?P<val>\d+(?:\.\d+)?)",
-            "val",
-        )
-        .unwrap();
+        ext.add_pattern("temperature", r"temp[=:]\s*(?P<val>\d+(?:\.\d+)?)", "val")
+            .unwrap();
 
         let entry = make_entry("sensor reading temp=23.5 unit=celsius");
         let metrics = ext.extract(&entry);
         assert!(
-            metrics.iter().any(|m| m.name == "temperature" && (m.value - 23.5).abs() < f64::EPSILON),
+            metrics
+                .iter()
+                .any(|m| m.name == "temperature" && (m.value - 23.5).abs() < f64::EPSILON),
             "should extract custom temperature metric"
         );
     }
@@ -324,7 +333,8 @@ mod tests {
     #[test]
     fn extract_json_numeric_fields() {
         let ext = MetricsExtractor::new();
-        let entry = make_entry(r#"{"duration": 150, "status": 200, "message": "ok", "ratio": 0.95}"#);
+        let entry =
+            make_entry(r#"{"duration": 150, "status": 200, "message": "ok", "ratio": 0.95}"#);
         let metrics = ext.extract_from_json(&entry);
         assert_eq!(metrics.len(), 3, "should extract 3 numeric JSON fields");
         assert!(metrics.iter().any(|m| m.name == "duration"));
@@ -337,7 +347,10 @@ mod tests {
         let ext = MetricsExtractor::new();
         let entry = make_entry(r#"{"message": "hello", "level": "info"}"#);
         let metrics = ext.extract_from_json(&entry);
-        assert!(metrics.is_empty(), "non-numeric JSON should produce no metrics");
+        assert!(
+            metrics.is_empty(),
+            "non-numeric JSON should produce no metrics"
+        );
     }
 
     #[test]

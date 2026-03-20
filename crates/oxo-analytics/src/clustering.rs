@@ -197,8 +197,8 @@ fn merge_pattern(
 ) {
     // Update tokens: where they differ, insert wildcard.
     let len = pattern.tokens.len().min(line_tokens.len());
-    for i in 0..len {
-        if pattern.tokens[i] != "{*}" && pattern.tokens[i] != line_tokens[i] {
+    for (i, line_token) in line_tokens.iter().enumerate().take(len) {
+        if pattern.tokens[i] != "{*}" && pattern.tokens[i] != *line_token {
             pattern.tokens[i] = "{*}".to_string();
         }
     }
@@ -313,11 +313,7 @@ mod tests {
         );
         // The static tokens should remain.
         assert!(tpl.contains("user"), "template missing 'user': {}", tpl);
-        assert!(
-            tpl.contains("logged"),
-            "template missing 'logged': {}",
-            tpl
-        );
+        assert!(tpl.contains("logged"), "template missing 'logged': {}", tpl);
         assert!(tpl.contains("in"), "template missing 'in': {}", tpl);
         assert!(tpl.contains("from"), "template missing 'from': {}", tpl);
     }

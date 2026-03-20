@@ -78,7 +78,7 @@ impl EsHit {
                     .or_else(|| obj.get("timestamp"))
                     .and_then(|v| v.as_str())
             })
-            .and_then(|s| parse_es_timestamp(s))
+            .and_then(parse_es_timestamp)
             .unwrap_or_else(Utc::now);
 
         // ── Log line ────────────────────────────────────────────────
@@ -90,9 +90,7 @@ impl EsHit {
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             })
-            .unwrap_or_else(|| {
-                serde_json::to_string(&self.source).unwrap_or_default()
-            });
+            .unwrap_or_else(|| serde_json::to_string(&self.source).unwrap_or_default());
 
         // ── Labels (flatten string-valued fields) ───────────────────
         let mut labels = BTreeMap::new();

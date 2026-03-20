@@ -30,11 +30,7 @@ impl WasmHost {
     ///
     /// The plugin's `transform` function receives JSON-serialized entries
     /// and returns transformed entries as JSON.
-    pub fn run_transform(
-        &self,
-        wasm_bytes: &[u8],
-        entries: &[LogEntry],
-    ) -> Result<Vec<LogEntry>> {
+    pub fn run_transform(&self, wasm_bytes: &[u8], entries: &[LogEntry]) -> Result<Vec<LogEntry>> {
         let module = Module::new(&self.engine, wasm_bytes)?;
         let mut store = Store::new(&self.engine, ());
 
@@ -53,8 +49,7 @@ impl WasmHost {
             .get_typed_func::<i32, i32>(&mut store, "alloc")
             .ok();
 
-        let transform_fn = instance
-            .get_typed_func::<(i32, i32), i64>(&mut store, "transform")?;
+        let transform_fn = instance.get_typed_func::<(i32, i32), i64>(&mut store, "transform")?;
 
         // Serialize input entries to JSON.
         let input_json = serde_json::to_vec(entries)?;
@@ -109,11 +104,7 @@ impl WasmHost {
     ///
     /// The plugin's `filter` function receives a JSON-serialized entry
     /// and returns 1 (keep) or 0 (drop).
-    pub fn run_filter(
-        &self,
-        wasm_bytes: &[u8],
-        entries: &[LogEntry],
-    ) -> Result<Vec<LogEntry>> {
+    pub fn run_filter(&self, wasm_bytes: &[u8], entries: &[LogEntry]) -> Result<Vec<LogEntry>> {
         let module = Module::new(&self.engine, wasm_bytes)?;
         let mut store = Store::new(&self.engine, ());
         store.set_fuel(1_000_000)?;
@@ -125,8 +116,7 @@ impl WasmHost {
             .get_memory(&mut store, "memory")
             .ok_or_else(|| anyhow::anyhow!("plugin has no exported memory"))?;
 
-        let filter_fn = instance
-            .get_typed_func::<(i32, i32), i32>(&mut store, "filter")?;
+        let filter_fn = instance.get_typed_func::<(i32, i32), i32>(&mut store, "filter")?;
 
         let mut result = Vec::with_capacity(entries.len());
 

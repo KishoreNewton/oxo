@@ -45,9 +45,8 @@ impl ElasticsearchClient {
     /// Returns [`BackendError::Connection`] if the URL is malformed or the
     /// HTTP client cannot be constructed.
     pub fn new(config: &ConnectionConfig) -> Result<Self, BackendError> {
-        let base_url = Url::parse(&config.url).map_err(|e| {
-            BackendError::Connection(format!("invalid Elasticsearch URL: {e}"))
-        })?;
+        let base_url = Url::parse(&config.url)
+            .map_err(|e| BackendError::Connection(format!("invalid Elasticsearch URL: {e}")))?;
 
         let http = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
@@ -59,9 +58,7 @@ impl ElasticsearchClient {
                     .is_some_and(|v| v == "true" || v == "1"),
             )
             .build()
-            .map_err(|e| {
-                BackendError::Connection(format!("failed to build HTTP client: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("failed to build HTTP client: {e}")))?;
 
         let index = config
             .extra
@@ -120,17 +117,13 @@ impl ElasticsearchClient {
             .map_err(|e| {
                 if e.is_timeout() {
                     BackendError::Timeout(std::time::Duration::from_secs(30))
-                } else if e.is_connect() {
-                    BackendError::Connection(format!("search request failed: {e}"))
                 } else {
                     BackendError::Connection(format!("search request failed: {e}"))
                 }
             })?;
 
         let status = resp.status();
-        if status == reqwest::StatusCode::UNAUTHORIZED
-            || status == reqwest::StatusCode::FORBIDDEN
-        {
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
             let body = resp.text().await.unwrap_or_default();
             return Err(BackendError::Auth(format!(
                 "Elasticsearch returned {status}: {body}"
@@ -146,9 +139,10 @@ impl ElasticsearchClient {
             )));
         }
 
-        let search_resp: SearchResponse = resp.json().await.map_err(|e| {
-            BackendError::Query(format!("failed to parse search response: {e}"))
-        })?;
+        let search_resp: SearchResponse = resp
+            .json()
+            .await
+            .map_err(|e| BackendError::Query(format!("failed to parse search response: {e}")))?;
 
         Ok(search_resp.hits.hits)
     }
@@ -160,10 +154,7 @@ impl ElasticsearchClient {
     /// Calls `GET /{index}/_field_caps?fields=*` and returns the list of
     /// field names, filtering out internal metadata fields (those starting
     /// with `_`).
-    pub async fn field_caps(
-        &self,
-        index: &str,
-    ) -> Result<Vec<String>, BackendError> {
+    pub async fn field_caps(&self, index: &str) -> Result<Vec<String>, BackendError> {
         let url = self.endpoint(&format!("/{}/_field_caps", index))?;
 
         let resp = self
@@ -171,9 +162,7 @@ impl ElasticsearchClient {
             .query(&[("fields", "*")])
             .send()
             .await
-            .map_err(|e| {
-                BackendError::Connection(format!("field_caps request failed: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("field_caps request failed: {e}")))?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -226,9 +215,7 @@ impl ElasticsearchClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| {
-                BackendError::Connection(format!("field_values request failed: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("field_values request failed: {e}")))?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -272,9 +259,7 @@ impl ElasticsearchClient {
             .authenticated(self.http.get(url))
             .send()
             .await
-            .map_err(|e| {
-                BackendError::Connection(format!("health check failed: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("health check failed: {e}")))?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -335,9 +320,7 @@ impl ElasticsearchClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| {
-                BackendError::Connection(format!("scroll search failed: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("scroll search failed: {e}")))?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -347,9 +330,10 @@ impl ElasticsearchClient {
             )));
         }
 
-        let search_resp: SearchResponse = resp.json().await.map_err(|e| {
-            BackendError::Query(format!("failed to parse scroll response: {e}"))
-        })?;
+        let search_resp: SearchResponse = resp
+            .json()
+            .await
+            .map_err(|e| BackendError::Query(format!("failed to parse scroll response: {e}")))?;
 
         Ok(search_resp.hits.hits)
     }
@@ -358,11 +342,9 @@ impl ElasticsearchClient {
 
     /// Build a full URL for an Elasticsearch API endpoint.
     fn endpoint(&self, path: &str) -> Result<Url, BackendError> {
-        self.base_url.join(path).map_err(|e| {
-            BackendError::Connection(format!(
-                "failed to build URL for {path}: {e}"
-            ))
-        })
+        self.base_url
+            .join(path)
+            .map_err(|e| BackendError::Connection(format!("failed to build URL for {path}: {e}")))
     }
 
     /// Apply authentication headers to a request.

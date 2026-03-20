@@ -11,8 +11,8 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+use tui_input::backend::crossterm::EventHandler;
 
 use chrono::{DateTime, Utc};
 use oxo_core::LogEntry;
@@ -217,10 +217,7 @@ impl DiffView {
         frame.render_widget(block, area);
 
         let max_lines = inner.height as usize;
-        let visible_rows = rows
-            .iter()
-            .skip(self.scroll)
-            .take(max_lines);
+        let visible_rows = rows.iter().skip(self.scroll).take(max_lines);
 
         let left_only_style = Style::default().fg(Color::Red);
         let right_only_style = Style::default().fg(Color::Green);
@@ -353,9 +350,8 @@ impl Component for DiffView {
                     Some(Action::DiffQueryLeft(query))
                 }
                 _ => {
-                    self.query_input.handle_event(
-                        &crossterm::event::Event::Key(key),
-                    );
+                    self.query_input
+                        .handle_event(&crossterm::event::Event::Key(key));
                     Some(Action::Noop)
                 }
             },
@@ -371,9 +367,8 @@ impl Component for DiffView {
                     Some(Action::DiffQueryRight(query))
                 }
                 _ => {
-                    self.query_input.handle_event(
-                        &crossterm::event::Event::Key(key),
-                    );
+                    self.query_input
+                        .handle_event(&crossterm::event::Event::Key(key));
                     Some(Action::Noop)
                 }
             },
@@ -388,11 +383,8 @@ impl Component for DiffView {
         let rows = self.aligned_rows();
 
         // Split horizontally 50/50.
-        let chunks = Layout::horizontal([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
-        .split(area);
+        let chunks = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(area);
 
         let editing_left = self.mode == DiffMode::EditingLeft;
         let editing_right = self.mode == DiffMode::EditingRight;

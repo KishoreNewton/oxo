@@ -75,12 +75,7 @@ impl AlertPanel {
 
     /// Push a new alert into the history. Keeps at most [`MAX_ALERT_HISTORY`]
     /// entries, discarding the oldest when the limit is reached.
-    pub fn push_alert(
-        &mut self,
-        timestamp: DateTime<Utc>,
-        rule_name: String,
-        message: String,
-    ) {
+    pub fn push_alert(&mut self, timestamp: DateTime<Utc>, rule_name: String, message: String) {
         if self.alerts.len() >= MAX_ALERT_HISTORY {
             self.alerts.remove(0);
         }
@@ -131,8 +126,7 @@ impl Component for AlertPanel {
         let popup_height = 24u16.min(area.height.saturating_sub(4));
 
         let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
-        let horizontal =
-            Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
+        let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
         let [vert_area] = vertical.areas(area);
         let [popup_area] = horizontal.areas(vert_area);
 
@@ -154,10 +148,7 @@ impl Component for AlertPanel {
         lines.push(Line::from(""));
 
         if self.alerts.is_empty() {
-            lines.push(Line::from(Span::styled(
-                "  No alerts fired yet.",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  No alerts fired yet.", dim)));
         } else {
             // Show alerts newest-first.
             for entry in self.alerts.iter().rev() {

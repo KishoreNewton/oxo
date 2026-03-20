@@ -152,11 +152,9 @@ impl ConfigSync {
     pub fn write_team_file(&self, relative: &str, content: &str) -> Result<(), String> {
         let path = self.team_file(relative);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("cannot create dir: {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("cannot create dir: {e}"))?;
         }
-        std::fs::write(&path, content)
-            .map_err(|e| format!("cannot write {}: {e}", path.display()))
+        std::fs::write(&path, content).map_err(|e| format!("cannot write {}: {e}", path.display()))
     }
 
     /// List files in the team config repo.

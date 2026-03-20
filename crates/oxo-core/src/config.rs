@@ -91,10 +91,20 @@ impl SourceConfig {
         if self.url.is_empty() {
             return "demo";
         }
-        if self.url.contains(":9200") || self.url.contains("elastic") || self.url.contains("opensearch") {
+        if self.url.contains(":9200")
+            || self.url.contains("elastic")
+            || self.url.contains("opensearch")
+        {
             return "elasticsearch";
         }
-        if self.url.contains("amazonaws.com") || !self.extra.get("region").map(|v| v.to_string()).unwrap_or_default().is_empty() {
+        if self.url.contains("amazonaws.com")
+            || !self
+                .extra
+                .get("region")
+                .map(|v| v.to_string())
+                .unwrap_or_default()
+                .is_empty()
+        {
             return "cloudwatch";
         }
         if self.url.contains(":3100") || self.url.contains("loki") {

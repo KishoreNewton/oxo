@@ -38,9 +38,8 @@ pub async fn execute_action(
             to,
             subject_template,
         } => {
-            let smtp = smtp_config.ok_or_else(|| {
-                "email action configured but no SMTP config provided".to_string()
-            })?;
+            let smtp = smtp_config
+                .ok_or_else(|| "email action configured but no SMTP config provided".to_string())?;
             let subject = match subject_template {
                 Some(tpl) => render_template(tpl, ctx),
                 None => format!("[oxo-alert] Rule '{}' fired", ctx.rule_name),
@@ -168,7 +167,10 @@ async fn send_webhook(
         req = req.header(k.as_str(), v.as_str());
     }
 
-    let resp = req.send().await.map_err(|e| format!("webhook request failed: {e}"))?;
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("webhook request failed: {e}"))?;
 
     if !resp.status().is_success() {
         let status = resp.status();

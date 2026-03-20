@@ -133,9 +133,7 @@ impl CloudWatchClient {
         let http = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
-            .map_err(|e| {
-                BackendError::Connection(format!("failed to build HTTP client: {e}"))
-            })?;
+            .map_err(|e| BackendError::Connection(format!("failed to build HTTP client: {e}")))?;
 
         Ok(Self {
             http,
@@ -259,9 +257,7 @@ impl CloudWatchClient {
             .await?;
 
         serde_json::from_slice(&resp_bytes).map_err(|e| {
-            BackendError::Query(format!(
-                "failed to parse DescribeLogStreams response: {e}"
-            ))
+            BackendError::Query(format!("failed to parse DescribeLogStreams response: {e}"))
         })
     }
 
@@ -294,9 +290,8 @@ impl CloudWatchClient {
             .send_action("Logs_20140328.GetLogEvents", &body)
             .await?;
 
-        serde_json::from_slice(&resp_bytes).map_err(|e| {
-            BackendError::Query(format!("failed to parse GetLogEvents response: {e}"))
-        })
+        serde_json::from_slice(&resp_bytes)
+            .map_err(|e| BackendError::Query(format!("failed to parse GetLogEvents response: {e}")))
     }
 
     // ── Private helpers ─────────────────────────────────────────────

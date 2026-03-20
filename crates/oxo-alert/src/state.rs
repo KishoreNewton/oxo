@@ -110,7 +110,11 @@ mod tests {
         // Use a very short window so entries expire quickly.
         let mut w = RateWindow::new(0); // 0-second window
         w.entries.push_back(Instant::now() - Duration::from_secs(1));
-        assert_eq!(w.count(), 0, "1-second-old entry should be evicted from a 0s window");
+        assert_eq!(
+            w.count(),
+            0,
+            "1-second-old entry should be evicted from a 0s window"
+        );
     }
 
     #[test]

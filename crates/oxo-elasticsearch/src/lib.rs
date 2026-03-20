@@ -75,10 +75,7 @@ pub struct ElasticsearchBackend {
 
 impl ElasticsearchBackend {
     /// Create a new Elasticsearch backend from an existing client.
-    pub fn with_client(
-        client: ElasticsearchClient,
-        config: ConnectionConfig,
-    ) -> Self {
+    pub fn with_client(client: ElasticsearchClient, config: ConnectionConfig) -> Self {
         Self {
             client,
             _config: config,
@@ -113,8 +110,7 @@ impl LogBackend for ElasticsearchBackend {
             .search(index, query, range.start, range.end, limit)
             .await?;
 
-        let mut entries: Vec<LogEntry> =
-            hits.into_iter().map(|hit| hit.into_log_entry()).collect();
+        let mut entries: Vec<LogEntry> = hits.into_iter().map(|hit| hit.into_log_entry()).collect();
 
         // Sort by timestamp descending (most recent first), matching Loki's
         // default behavior and what the TUI expects.

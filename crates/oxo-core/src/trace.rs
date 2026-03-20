@@ -241,12 +241,8 @@ static PARENT_SPAN_ID_KV_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// JSON field names that may contain a parent span ID.
-const JSON_PARENT_SPAN_FIELDS: &[&str] = &[
-    "parent_span_id",
-    "parentSpanId",
-    "parent_id",
-    "parentId",
-];
+const JSON_PARENT_SPAN_FIELDS: &[&str] =
+    &["parent_span_id", "parentSpanId", "parent_id", "parentId"];
 
 /// Reconstructs traces from a collection of log entries.
 ///
@@ -273,9 +269,7 @@ impl TraceReconstructor {
             if let Some(trace_id) = TraceDetector::detect(&entry.line) {
                 // Only group by actual trace/request/correlation IDs, not span IDs alone.
                 match trace_id.kind {
-                    TraceIdKind::TraceId
-                    | TraceIdKind::RequestId
-                    | TraceIdKind::CorrelationId => {
+                    TraceIdKind::TraceId | TraceIdKind::RequestId | TraceIdKind::CorrelationId => {
                         by_trace.entry(trace_id.id).or_default().push(entry);
                     }
                     TraceIdKind::SpanId => {
@@ -289,9 +283,7 @@ impl TraceReconstructor {
         // Step 2-8: Build ReconstructedTrace for each trace group.
         let mut traces: Vec<ReconstructedTrace> = by_trace
             .into_iter()
-            .map(|(trace_id, trace_entries)| {
-                Self::build_trace(trace_id, &trace_entries)
-            })
+            .map(|(trace_id, trace_entries)| Self::build_trace(trace_id, &trace_entries))
             .collect();
 
         // Sort traces by earliest span start time.
@@ -306,26 +298,22 @@ impl TraceReconstructor {
         let mut by_span: HashMap<String, Vec<&LogEntry>> = HashMap::new();
 
         for entry in entries {
-            let span_id = Self::extract_span_id(&entry.line)
-                .unwrap_or_else(|| "_default".to_string());
+            let span_id =
+                Self::extract_span_id(&entry.line).unwrap_or_else(|| "_default".to_string());
             by_span.entry(span_id).or_default().push(entry);
         }
 
         // Build spans.
         let mut spans: Vec<TraceSpan> = by_span
             .into_iter()
-            .map(|(span_key, span_entries)| {
-                Self::build_span(&trace_id, &span_key, &span_entries)
-            })
+            .map(|(span_key, span_entries)| Self::build_span(&trace_id, &span_key, &span_entries))
             .collect();
 
         // Sort spans by start time.
         spans.sort_by_key(|s| s.start);
 
         // Compute aggregate metrics.
-        let total_duration = if let (Some(first), Some(last)) =
-            (spans.first(), spans.last())
-        {
+        let total_duration = if let (Some(first), Some(last)) = (spans.first(), spans.last()) {
             last.end.signed_duration_since(first.start)
         } else {
             chrono::Duration::zero()
@@ -355,11 +343,7 @@ impl TraceReconstructor {
     }
 
     /// Build a single `TraceSpan` from entries sharing the same span ID.
-    fn build_span(
-        trace_id: &str,
-        span_key: &str,
-        entries: &[&LogEntry],
-    ) -> TraceSpan {
+    fn build_span(trace_id: &str, span_key: &str, entries: &[&LogEntry]) -> TraceSpan {
         let span_id = if span_key == "_default" {
             None
         } else {
@@ -372,14 +356,14 @@ impl TraceReconstructor {
             .find_map(|e| Self::extract_parent_span_id(&e.line));
 
         // Detect service from labels.
-        let service = entries.iter().find_map(|e| {
-            Self::find_label(&e.labels, &["service", "app", "job", "container"])
-        });
+        let service = entries
+            .iter()
+            .find_map(|e| Self::find_label(&e.labels, &["service", "app", "job", "container"]));
 
         // Detect operation from labels.
-        let operation = entries.iter().find_map(|e| {
-            Self::find_label(&e.labels, &["operation", "op", "method", "endpoint"])
-        });
+        let operation = entries
+            .iter()
+            .find_map(|e| Self::find_label(&e.labels, &["operation", "op", "method", "endpoint"]));
 
         // Compute start/end from timestamps.
         let start = entries
@@ -472,10 +456,7 @@ impl TraceReconstructor {
     }
 
     /// Find the first matching label value from a set of candidate label keys.
-    fn find_label(
-        labels: &BTreeMap<String, String>,
-        candidates: &[&str],
-    ) -> Option<String> {
+    fn find_label(labels: &BTreeMap<String, String>, candidates: &[&str]) -> Option<String> {
         for key in candidates {
             if let Some(val) = labels.get(*key) {
                 if !val.is_empty() {

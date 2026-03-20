@@ -795,10 +795,8 @@ impl LogViewer {
         if let Some(sel) = self.selected_line {
             let (start, _end) = self.visible_range();
             let entry_idx = start + sel;
-            if entry_idx < self.entries.len() {
-                if !self.bookmarks.remove(&entry_idx) {
-                    self.bookmarks.insert(entry_idx);
-                }
+            if entry_idx < self.entries.len() && !self.bookmarks.remove(&entry_idx) {
+                self.bookmarks.insert(entry_idx);
             }
         }
     }
@@ -837,10 +835,7 @@ impl LogViewer {
             return;
         }
         let (start, _end) = self.visible_range();
-        let current = self
-            .selected_line
-            .map(|sel| start + sel)
-            .unwrap_or(0);
+        let current = self.selected_line.map(|sel| start + sel).unwrap_or(0);
 
         let mut sorted: Vec<usize> = self.bookmarks.iter().copied().collect();
         sorted.sort();
@@ -965,8 +960,7 @@ impl LogViewer {
                     .add_modifier(Modifier::BOLD)
             } else {
                 // Tint by log level if available.
-                let level_str =
-                    entry.labels.get("level").or(entry.labels.get("severity"));
+                let level_str = entry.labels.get("level").or(entry.labels.get("severity"));
                 level_str
                     .and_then(|l| self.theme.log_level_color(l))
                     .map(|c| Style::default().fg(c))
@@ -1481,7 +1475,10 @@ mod tests {
         );
 
         // Durations
-        assert_eq!(p.normalize("took 432ms to complete"), "took <DUR> to complete");
+        assert_eq!(
+            p.normalize("took 432ms to complete"),
+            "took <DUR> to complete"
+        );
 
         // Numbers (2+ digits)
         assert_eq!(p.normalize("status 500 returned"), "status <N> returned");

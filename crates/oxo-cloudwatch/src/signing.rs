@@ -60,6 +60,7 @@ pub struct SignedHeaders {
 ///
 /// A [`SignedHeaders`] struct containing the `Authorization`, `X-Amz-Date`,
 /// and optionally `X-Amz-Security-Token` headers to attach to the request.
+#[allow(clippy::too_many_arguments)]
 pub fn sign_request(
     method: &str,
     url: &url::Url,
@@ -119,9 +120,8 @@ pub fn sign_request(
     let credential_scope = format!("{date_stamp}/{region}/{service}/aws4_request");
     let canonical_request_hash = hex::encode(Sha256::digest(canonical_request.as_bytes()));
 
-    let string_to_sign = format!(
-        "AWS4-HMAC-SHA256\n{amz_date}\n{credential_scope}\n{canonical_request_hash}"
-    );
+    let string_to_sign =
+        format!("AWS4-HMAC-SHA256\n{amz_date}\n{credential_scope}\n{canonical_request_hash}");
 
     // ── Step 3: Signing key ─────────────────────────────────────────
 
@@ -163,8 +163,7 @@ fn derive_signing_key(secret_key: &str, date_stamp: &str, region: &str, service:
 
 /// Compute HMAC-SHA256.
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac =
-        HmacSha256::new_from_slice(key).expect("HMAC-SHA256 accepts keys of any length");
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC-SHA256 accepts keys of any length");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()
 }
@@ -176,7 +175,12 @@ mod tests {
     /// See: <https://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html>
     #[test]
     fn signing_key_derivation() {
-        let key = derive_signing_key("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20150830", "us-east-1", "iam");
+        let key = derive_signing_key(
+            "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            "20150830",
+            "us-east-1",
+            "iam",
+        );
         let expected = "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9";
         assert_eq!(hex::encode(&key), expected);
     }

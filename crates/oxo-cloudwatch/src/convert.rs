@@ -17,10 +17,7 @@ use crate::response::FilteredLogEvent;
 ///
 /// Returns `None` if the event has no timestamp (which is required for a
 /// meaningful log entry).
-pub fn filtered_event_to_log_entry(
-    event: &FilteredLogEvent,
-    log_group: &str,
-) -> Option<LogEntry> {
+pub fn filtered_event_to_log_entry(event: &FilteredLogEvent, log_group: &str) -> Option<LogEntry> {
     let timestamp_ms = event.timestamp?;
     let secs = timestamp_ms / 1_000;
     let nanos = ((timestamp_ms % 1_000) * 1_000_000) as u32;

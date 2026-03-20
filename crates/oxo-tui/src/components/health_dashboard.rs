@@ -136,10 +136,7 @@ impl HealthDashboard {
         // Last entry.
         lines.push(Line::from(vec![
             Span::raw("  Last entry:    "),
-            Span::styled(
-                self.last_entry_at.as_deref().unwrap_or("(none)"),
-                dim,
-            ),
+            Span::styled(self.last_entry_at.as_deref().unwrap_or("(none)"), dim),
         ]));
 
         lines.push(Line::from(""));
@@ -164,10 +161,7 @@ impl HealthDashboard {
         ]));
 
         lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  [j/k scroll · Esc close]",
-            dim,
-        )));
+        lines.push(Line::from(Span::styled("  [j/k scroll · Esc close]", dim)));
 
         lines
     }

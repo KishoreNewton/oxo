@@ -64,7 +64,6 @@ impl LogBackend for MergedBackend {
             .iter()
             .map(|(name, backend)| {
                 let name = name.clone();
-                let range = range.clone();
                 async move {
                     let result = backend.query(query, range, limit).await;
                     (name, result)
@@ -155,10 +154,8 @@ impl LogBackend for MergedBackend {
         let mut all: BTreeSet<String> = BTreeSet::new();
         all.insert(SOURCE_LABEL.to_string());
 
-        for result in results {
-            if let Ok(labels) = result {
-                all.extend(labels);
-            }
+        for labels in results.into_iter().flatten() {
+            all.extend(labels);
         }
 
         Ok(all.into_iter().collect())
@@ -178,10 +175,8 @@ impl LogBackend for MergedBackend {
         let results = join_all(futures).await;
 
         let mut all: BTreeSet<String> = BTreeSet::new();
-        for result in results {
-            if let Ok(values) = result {
-                all.extend(values);
-            }
+        for values in results.into_iter().flatten() {
+            all.extend(values);
         }
 
         Ok(all.into_iter().collect())
@@ -205,9 +200,8 @@ impl LogBackend for MergedBackend {
             last_error = Some(result.unwrap_err());
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            BackendError::Connection("no backends configured".to_string())
-        }))
+        Err(last_error
+            .unwrap_or_else(|| BackendError::Connection("no backends configured".to_string())))
     }
 
     fn from_config(_config: &ConnectionConfig) -> Result<Self, BackendError>

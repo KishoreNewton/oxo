@@ -295,11 +295,7 @@ impl QueryBar {
 
         // Otherwise we're in label-name position.
         // The partial label name is whatever comes after the last `,` (or after `{`).
-        let partial = inside
-            .rsplit(',')
-            .next()
-            .unwrap_or(inside)
-            .trim_start();
+        let partial = inside.rsplit(',').next().unwrap_or(inside).trim_start();
 
         // If partial contains `=` or `!` we're past the label name — no completion.
         if partial.contains('=') || partial.contains('!') {
@@ -528,12 +524,7 @@ mod tests {
         let bar = make_bar("{app=\"front");
         let ctx = bar.analyze_context();
         assert!(matches!(ctx, CompletionContext::LabelValue { .. }));
-        if let CompletionContext::LabelValue {
-            label,
-            prefix,
-            ..
-        } = ctx
-        {
+        if let CompletionContext::LabelValue { label, prefix, .. } = ctx {
             assert_eq!(label, "app");
             assert_eq!(prefix, "front");
         }

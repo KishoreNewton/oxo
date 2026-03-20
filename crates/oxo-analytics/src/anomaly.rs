@@ -116,12 +116,8 @@ impl VolumeAnomalyDetector {
         if self.window.len() < 2 {
             return 0.0;
         }
-        let variance = self
-            .window
-            .iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>()
-            / self.window.len() as f64;
+        let variance =
+            self.window.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / self.window.len() as f64;
         variance.sqrt()
     }
 }
@@ -278,7 +274,11 @@ mod tests {
         assert!(d.check("GET /api/{*}", "GET /api/111", ts).is_none());
 
         // New pattern — should trigger.
-        let event = d.check("FATAL database timeout {*}", "FATAL database timeout 30s", ts);
+        let event = d.check(
+            "FATAL database timeout {*}",
+            "FATAL database timeout 30s",
+            ts,
+        );
         assert!(event.is_some());
         let e = event.unwrap();
         assert_eq!(e.template, "FATAL database timeout {*}");

@@ -236,13 +236,22 @@ fn load_config(cli: &Cli) -> Result<(AppConfig, Option<String>)> {
             .insert("org_id".to_string(), org_id.clone());
     }
     if let Some(ref region) = cli.region {
-        config.connection.extra.insert("region".to_string(), region.clone());
+        config
+            .connection
+            .extra
+            .insert("region".to_string(), region.clone());
     }
     if let Some(ref index) = cli.index {
-        config.connection.extra.insert("index".to_string(), index.clone());
+        config
+            .connection
+            .extra
+            .insert("index".to_string(), index.clone());
     }
     if let Some(ref log_group) = cli.log_group {
-        config.connection.extra.insert("log_group".to_string(), log_group.clone());
+        config
+            .connection
+            .extra
+            .insert("log_group".to_string(), log_group.clone());
     }
 
     Ok((config, raw_content))
@@ -340,10 +349,7 @@ fn available_backends() -> Vec<&'static str> {
 ///
 /// Parses the `[alerts]` section from the raw config content (if available),
 /// creates engine instances, and spawns them as tokio tasks.
-fn setup_engines(
-    _cli: &Cli,
-    config_content: Option<&str>,
-) -> oxo_tui::app::EngineChannels {
+fn setup_engines(_cli: &Cli, config_content: Option<&str>) -> oxo_tui::app::EngineChannels {
     let mut channels = oxo_tui::app::EngineChannels::default();
 
     // ── Alert engine ─────────────────────────────────────────────────

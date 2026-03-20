@@ -112,13 +112,9 @@ impl AutocompletePopup {
         // Compute popup dimensions.
         let item_count = self.filtered.len().min(MAX_VISIBLE);
         // +2 for top/bottom border, +1 for the match-count footer line.
-        let popup_height = (item_count as u16 + 3).min(frame_size.height.saturating_sub(area.bottom()));
-        let longest = self
-            .filtered
-            .iter()
-            .map(|s| s.len())
-            .max()
-            .unwrap_or(0);
+        let popup_height =
+            (item_count as u16 + 3).min(frame_size.height.saturating_sub(area.bottom()));
+        let longest = self.filtered.iter().map(|s| s.len()).max().unwrap_or(0);
         // +4 for border + padding on each side.
         let popup_width = (longest as u16 + 4).max(20).min(area.width);
 

@@ -9,9 +9,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Flex, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{
-    Block, Borders, Clear, Paragraph, Sparkline, Tabs, Wrap,
-};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Sparkline, Tabs, Wrap};
 
 use crate::action::Action;
 use crate::components::Component;
@@ -213,10 +211,7 @@ impl AnalyticsPanel {
 
         if self.patterns.is_empty() {
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  No patterns detected yet.",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  No patterns detected yet.", dim)));
             return lines;
         }
 
@@ -226,7 +221,9 @@ impl AnalyticsPanel {
             let mut spans = vec![Span::raw(format!("  #{:<3} ", i + 1))];
             for part in pattern.template.split("{*}") {
                 if !spans.is_empty()
-                    && spans.last().map_or(false, |s: &Span| s.content.ends_with('}'))
+                    && spans
+                        .last()
+                        .is_some_and(|s: &Span| s.content.ends_with('}'))
                 {
                     // This is after a {*} -- insert the placeholder span first.
                 }
@@ -234,7 +231,7 @@ impl AnalyticsPanel {
                 spans.push(Span::styled("{*}", accent));
             }
             // Remove the trailing {*} that was added after the last split part.
-            if spans.last().map_or(false, |s| s.content == "{*}") {
+            if spans.last().is_some_and(|s| s.content == "{*}") {
                 spans.pop();
             }
             lines.push(Line::from(spans));
@@ -259,10 +256,7 @@ impl AnalyticsPanel {
 
         if self.anomalies.is_empty() {
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  No anomalies detected.",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  No anomalies detected.", dim)));
             return lines;
         }
 
@@ -299,21 +293,19 @@ impl AnalyticsPanel {
 
         if self.correlations.is_empty() {
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  No correlations found.",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  No correlations found.", dim)));
             return lines;
         }
 
         // Header row.
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  {:<16} {:<14} {:>10} {:>10} {:>8}", "Label", "Value", "Baseline", "Current", "Change"),
-                bold,
+        lines.push(Line::from(vec![Span::styled(
+            format!(
+                "  {:<16} {:<14} {:>10} {:>10} {:>8}",
+                "Label", "Value", "Baseline", "Current", "Change"
             ),
-        ]));
+            bold,
+        )]));
         lines.push(Line::from(Span::styled(
             format!("  {}", "-".repeat(62)),
             dim,
@@ -351,10 +343,7 @@ impl AnalyticsPanel {
         lines.push(Line::from(""));
 
         if self.trend_description.is_empty() && self.trend_data.is_empty() {
-            lines.push(Line::from(Span::styled(
-                "  No trend data available.",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  No trend data available.", dim)));
             return lines;
         }
 
@@ -367,10 +356,7 @@ impl AnalyticsPanel {
         // The sparkline will be rendered separately in the render method,
         // so we add a placeholder note here for the text portion.
         if !self.trend_data.is_empty() {
-            lines.push(Line::from(Span::styled(
-                "  Error rate over time:",
-                dim,
-            )));
+            lines.push(Line::from(Span::styled("  Error rate over time:", dim)));
             // Sparkline is rendered as a widget below this text area.
         }
 
@@ -508,10 +494,8 @@ impl Component for AnalyticsPanel {
         let popup_width = ((area.width as u32 * 80 / 100) as u16).max(40);
         let popup_height = ((area.height as u32 * 80 / 100) as u16).max(16);
 
-        let vertical =
-            Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
-        let horizontal =
-            Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
+        let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
+        let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
         let [vert_area] = vertical.areas(area);
         let [popup_area] = horizontal.areas(vert_area);
 
@@ -533,7 +517,7 @@ impl Component for AnalyticsPanel {
         // Split inner area into tabs bar, content area, and footer.
         let chunks = Layout::vertical([
             Constraint::Length(2), // Tabs
-            Constraint::Min(1),   // Content
+            Constraint::Min(1),    // Content
             Constraint::Length(1), // Footer
         ])
         .split(inner);
@@ -591,13 +575,10 @@ impl Component for AnalyticsPanel {
                 let lines = self.render_trends();
                 let text_height = lines.len() as u16;
 
-                if content_area.height > text_height + 3 && !self.trend_data.is_empty()
-                {
-                    let trend_chunks = Layout::vertical([
-                        Constraint::Length(text_height),
-                        Constraint::Min(3),
-                    ])
-                    .split(content_area);
+                if content_area.height > text_height + 3 && !self.trend_data.is_empty() {
+                    let trend_chunks =
+                        Layout::vertical([Constraint::Length(text_height), Constraint::Min(3)])
+                            .split(content_area);
 
                     let paragraph = Paragraph::new(lines)
                         .wrap(Wrap { trim: false })

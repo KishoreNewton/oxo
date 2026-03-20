@@ -78,9 +78,7 @@ pub async fn start_tail(
                         continue;
                     }
 
-                    if let Some(entry) =
-                        filtered_event_to_log_entry(&event, log_group)
-                    {
+                    if let Some(entry) = filtered_event_to_log_entry(&event, log_group) {
                         // Track the latest timestamp we've seen.
                         if latest_ts.is_none() || entry.timestamp > latest_ts.unwrap() {
                             latest_ts = Some(entry.timestamp);

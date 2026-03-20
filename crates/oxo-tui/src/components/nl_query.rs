@@ -16,8 +16,8 @@ use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
-use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+use tui_input::backend::crossterm::EventHandler;
 
 use crate::action::Action;
 use crate::components::Component;
@@ -80,7 +80,8 @@ impl NlQuery {
             if let Some(pos) = input_lower.find(kw) {
                 let rest = &input[pos + kw.len()..].trim_start();
                 if let Some(word) = rest.split_whitespace().next() {
-                    let cleaned = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_');
+                    let cleaned =
+                        word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_');
                     if !cleaned.is_empty() && cleaned.len() > 1 {
                         // Check if this matches a known label
                         let label_key = if self.available_labels.contains(&"job".to_string()) {
@@ -102,10 +103,16 @@ impl NlQuery {
 
         // Detect log level mentions
         let level_map = [
-            ("error", "error"), ("errors", "error"),
-            ("warning", "warn"), ("warnings", "warn"), ("warn", "warn"),
-            ("info", "info"), ("debug", "debug"),
-            ("fatal", "fatal"), ("critical", "fatal"), ("panic", "fatal"),
+            ("error", "error"),
+            ("errors", "error"),
+            ("warning", "warn"),
+            ("warnings", "warn"),
+            ("warn", "warn"),
+            ("info", "info"),
+            ("debug", "debug"),
+            ("fatal", "fatal"),
+            ("critical", "fatal"),
+            ("panic", "fatal"),
         ];
         for (word, level) in &level_map {
             if input_lower.contains(word) {
@@ -123,9 +130,15 @@ impl NlQuery {
 
         // Detect HTTP status codes
         let status_codes = [
-            ("500", "500"), ("5xx", "5"), ("5XX", "5"),
-            ("404", "404"), ("4xx", "4"), ("4XX", "4"),
-            ("503", "503"), ("502", "502"), ("200", "200"),
+            ("500", "500"),
+            ("5xx", "5"),
+            ("5XX", "5"),
+            ("404", "404"),
+            ("4xx", "4"),
+            ("4XX", "4"),
+            ("503", "503"),
+            ("502", "502"),
+            ("200", "200"),
         ];
         for (pattern, code) in &status_codes {
             if input_lower.contains(&pattern.to_lowercase()) {
@@ -141,41 +154,60 @@ impl NlQuery {
         }
 
         // Detect "slow" / "latency" / "timeout" keywords
-        if input_lower.contains("slow") || input_lower.contains("latency") || input_lower.contains("timeout") {
+        if input_lower.contains("slow")
+            || input_lower.contains("latency")
+            || input_lower.contains("timeout")
+        {
             parse_stages.push("json".to_string());
 
             // Try to extract a threshold number
             let threshold = extract_number(&input_lower).unwrap_or(1000.0);
-            let unit = if input_lower.contains("second") { threshold * 1000.0 } else { threshold };
+            let unit = if input_lower.contains("second") {
+                threshold * 1000.0
+            } else {
+                threshold
+            };
 
             label_filters.push(format!("duration>{}", unit as u64));
             explanations.push(format!("Parse JSON, filter duration > {}ms", unit as u64));
         }
 
         // Detect "json" or "structured"
-        if input_lower.contains("json") || input_lower.contains("structured") || input_lower.contains("parse") {
-            if !parse_stages.contains(&"json".to_string()) {
-                parse_stages.push("json".to_string());
-                explanations.push("Parse JSON fields".to_string());
-            }
+        if (input_lower.contains("json")
+            || input_lower.contains("structured")
+            || input_lower.contains("parse"))
+            && !parse_stages.contains(&"json".to_string())
+        {
+            parse_stages.push("json".to_string());
+            explanations.push("Parse JSON fields".to_string());
         }
 
         // Detect specific text search patterns
         let search_patterns = [
-            ("containing", true), ("with", true),
-            ("matching", true), ("like", true),
-            ("about", true), ("for", true),
+            ("containing", true),
+            ("with", true),
+            ("matching", true),
+            ("like", true),
+            ("about", true),
+            ("for", true),
         ];
         for (kw, _) in &search_patterns {
             if let Some(pos) = input_lower.find(kw) {
                 let rest = &input[pos + kw.len()..].trim_start();
                 // Extract quoted text or the next word(s)
                 let search_term = if rest.starts_with('"') {
-                    rest.trim_matches('"').split('"').next().unwrap_or("").to_string()
+                    rest.trim_matches('"')
+                        .split('"')
+                        .next()
+                        .unwrap_or("")
+                        .to_string()
                 } else {
                     // Take up to next keyword or end
                     rest.split_whitespace()
-                        .take_while(|w| !["from", "in", "last", "since", "between"].contains(&w.to_lowercase().as_str()))
+                        .take_while(|w| {
+                            !["from", "in", "last", "since", "between"]
+                                .contains(&w.to_lowercase().as_str())
+                        })
                         .collect::<Vec<_>>()
                         .join(" ")
                 };
@@ -191,8 +223,10 @@ impl NlQuery {
         // Detect general text to search (if no other filters matched well)
         if line_filters.is_empty() && label_filters.is_empty() && parse_stages.is_empty() {
             // Use the whole input as a search term, minus common filler words
-            let filler = ["show", "me", "the", "all", "find", "get", "logs", "log", "please",
-                          "can", "you", "i", "want", "to", "see", "display", "list"];
+            let filler = [
+                "show", "me", "the", "all", "find", "get", "logs", "log", "please", "can", "you",
+                "i", "want", "to", "see", "display", "list",
+            ];
             let meaningful: Vec<&str> = input_lower
                 .split_whitespace()
                 .filter(|w| !filler.contains(w))
@@ -319,17 +353,15 @@ impl Component for NlQuery {
             Constraint::Length(1), // Spacing
             Constraint::Length(3), // Input box
             Constraint::Length(1), // Spacing
-            Constraint::Min(3),   // Generated query + explanation
+            Constraint::Min(3),    // Generated query + explanation
         ])
         .split(inner);
 
         // Help text
-        let help = Line::from(vec![
-            Span::styled(
-                " Describe what you're looking for in plain English ",
-                Style::default().fg(Color::DarkGray),
-            ),
-        ]);
+        let help = Line::from(vec![Span::styled(
+            " Describe what you're looking for in plain English ",
+            Style::default().fg(Color::DarkGray),
+        )]);
         frame.render_widget(Paragraph::new(help).alignment(Alignment::Center), chunks[0]);
 
         // Input box
@@ -352,17 +384,16 @@ impl Component for NlQuery {
         // Generated query + explanation
         if let Some(ref query) = self.generated_query {
             let mut lines = vec![
-                Line::from(vec![
-                    Span::styled(" Generated: ", Style::default().fg(Color::DarkGray)),
-                ]),
-                Line::from(vec![
-                    Span::styled(
-                        format!("  {query}"),
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ]),
+                Line::from(vec![Span::styled(
+                    " Generated: ",
+                    Style::default().fg(Color::DarkGray),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("  {query}"),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )]),
                 Line::from(""),
             ];
 
@@ -374,12 +405,10 @@ impl Component for NlQuery {
             }
 
             lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled(
-                    " Press Enter to execute  |  Tab to edit  |  Esc to cancel",
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                " Press Enter to execute  |  Tab to edit  |  Esc to cancel",
+                Style::default().fg(Color::DarkGray),
+            )]));
 
             let explanation_para = Paragraph::new(lines).wrap(Wrap { trim: false });
             frame.render_widget(explanation_para, chunks[4]);
@@ -387,22 +416,37 @@ impl Component for NlQuery {
             // Show examples
             let examples = vec![
                 Line::from(""),
-                Line::from(Span::styled("  Examples:", Style::default().fg(Color::DarkGray))),
+                Line::from(Span::styled(
+                    "  Examples:",
+                    Style::default().fg(Color::DarkGray),
+                )),
                 Line::from(vec![
                     Span::styled("  → ", Style::default().fg(Color::DarkGray)),
-                    Span::styled("\"errors from api service in the last hour\"", Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        "\"errors from api service in the last hour\"",
+                        Style::default().fg(Color::Cyan),
+                    ),
                 ]),
                 Line::from(vec![
                     Span::styled("  → ", Style::default().fg(Color::DarkGray)),
-                    Span::styled("\"slow requests over 2 seconds\"", Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        "\"slow requests over 2 seconds\"",
+                        Style::default().fg(Color::Cyan),
+                    ),
                 ]),
                 Line::from(vec![
                     Span::styled("  → ", Style::default().fg(Color::DarkGray)),
-                    Span::styled("\"500 errors from payment service\"", Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        "\"500 errors from payment service\"",
+                        Style::default().fg(Color::Cyan),
+                    ),
                 ]),
                 Line::from(vec![
                     Span::styled("  → ", Style::default().fg(Color::DarkGray)),
-                    Span::styled("\"show me all warnings containing timeout\"", Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        "\"show me all warnings containing timeout\"",
+                        Style::default().fg(Color::Cyan),
+                    ),
                 ]),
             ];
             frame.render_widget(Paragraph::new(examples), chunks[4]);

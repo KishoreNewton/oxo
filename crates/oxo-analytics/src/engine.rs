@@ -118,11 +118,10 @@ impl AnalyticsEngine {
         // Check for new patterns.
         let top = self.clusterer.top_patterns(1);
         if let Some(pattern) = top.first() {
-            if let Some(event) = self.pattern_detector.check(
-                &pattern.template,
-                &pattern.example,
-                entry.timestamp,
-            ) {
+            if let Some(event) =
+                self.pattern_detector
+                    .check(&pattern.template, &pattern.example, entry.timestamp)
+            {
                 self.recent_new_patterns.push(event);
             }
         }
@@ -200,7 +199,11 @@ mod tests {
 
         // Ingest some entries.
         for i in 0..10 {
-            engine.ingest(make_entry(&format!("GET /api/v1/resource/{} 200 {}ms", i, i * 10)));
+            engine.ingest(make_entry(&format!(
+                "GET /api/v1/resource/{} 200 {}ms",
+                i,
+                i * 10
+            )));
         }
 
         // Simulate 5 ticks to trigger a snapshot.
@@ -210,10 +213,7 @@ mod tests {
 
         // Should have received one snapshot.
         let snapshot = rx.try_recv();
-        assert!(
-            snapshot.is_ok(),
-            "expected a snapshot after 5 ticks"
-        );
+        assert!(snapshot.is_ok(), "expected a snapshot after 5 ticks");
         let snap = snapshot.unwrap();
         assert!(
             !snap.top_patterns.is_empty(),

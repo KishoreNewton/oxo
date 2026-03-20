@@ -42,7 +42,7 @@ impl TopNAnalyzer {
     /// first few tokens of the log line (typically the HTTP method + path).
     pub fn slowest_endpoints(entries: &[LogEntry], n: usize) -> Vec<EndpointLatency> {
         let latency_re = Regex::new(
-            r"(?i)(?:duration|latency|took|elapsed|time)[=: ]+(\d+(?:\.\d+)?)\s*(?:ms|s|us)"
+            r"(?i)(?:duration|latency|took|elapsed|time)[=: ]+(\d+(?:\.\d+)?)\s*(?:ms|s|us)",
         )
         .expect("latency regex should compile");
 
@@ -180,7 +180,9 @@ fn extract_pattern(line: &str) -> String {
         .split_whitespace()
         .filter(|t| {
             // Skip tokens that look like timestamps, numbers, or IDs.
-            !t.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == ':' || c == 'T' || c == 'Z')
+            !t.chars().all(|c| {
+                c.is_ascii_digit() || c == '.' || c == '-' || c == ':' || c == 'T' || c == 'Z'
+            })
         })
         .take(3)
         .collect();

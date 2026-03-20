@@ -126,11 +126,7 @@ impl LogBackend for CloudWatchBackend {
 
         // Use the query text as a CloudWatch filter pattern. An empty query
         // matches all events.
-        let filter_pattern = if query.is_empty() {
-            None
-        } else {
-            Some(query)
-        };
+        let filter_pattern = if query.is_empty() { None } else { Some(query) };
 
         let mut entries = Vec::new();
         let mut next_token: Option<String> = None;

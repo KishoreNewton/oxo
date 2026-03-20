@@ -182,8 +182,7 @@ mod tests {
         let cond = AlertCondition::LevelThreshold {
             level: "warn".to_string(),
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(0);
 
         // "error" is at or above "warn".
@@ -208,8 +207,7 @@ mod tests {
         let cond = AlertCondition::LevelThreshold {
             level: "error".to_string(),
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(0);
 
         let entry = make_entry("x", &[("level", "error")]);
@@ -227,8 +225,7 @@ mod tests {
         let cond = AlertCondition::LevelThreshold {
             level: "fatal".to_string(),
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(0);
 
         let entry = make_entry("x", &[("level", "fatal")]);
@@ -243,8 +240,7 @@ mod tests {
         let cond = AlertCondition::LevelThreshold {
             level: "error".to_string(),
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(0);
 
         let entry = make_entry("x", &[("severity", "fatal")]);
@@ -256,8 +252,7 @@ mod tests {
         let cond = AlertCondition::LevelThreshold {
             level: "error".to_string(),
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(0);
 
         let entry = make_entry("ERROR in the line but no label", &[]);
@@ -270,8 +265,7 @@ mod tests {
             count: 3,
             window_seconds: 60,
         };
-        let rule =
-            CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, HashMap::new()).expect("valid");
         let mut state = RuleState::new(60);
 
         let entry = make_entry("log line", &[]);
@@ -292,8 +286,7 @@ mod tests {
         };
         let mut labels = HashMap::new();
         labels.insert("env".to_string(), "production".to_string());
-        let rule =
-            CompiledRule::compile("test".into(), &cond, labels).expect("valid");
+        let rule = CompiledRule::compile("test".into(), &cond, labels).expect("valid");
         let mut state = RuleState::new(0);
 
         // Entry without the required label should not match.

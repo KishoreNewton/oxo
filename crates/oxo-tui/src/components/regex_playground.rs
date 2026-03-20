@@ -124,10 +124,8 @@ impl RegexPlayground {
             }
         };
 
-        let capture_names: Vec<Option<String>> = re
-            .capture_names()
-            .map(|n| n.map(String::from))
-            .collect();
+        let capture_names: Vec<Option<String>> =
+            re.capture_names().map(|n| n.map(String::from)).collect();
 
         for (idx, line) in self.lines.iter().enumerate() {
             if self.matches.len() >= MAX_MATCHES {
@@ -152,9 +150,7 @@ impl RegexPlayground {
             let mut captures = Vec::new();
             for (i, name_opt) in capture_names.iter().enumerate().skip(1) {
                 if let Some(m) = caps.get(i) {
-                    let group_name = name_opt
-                        .clone()
-                        .unwrap_or_else(|| format!("{}", i));
+                    let group_name = name_opt.clone().unwrap_or_else(|| format!("{}", i));
                     captures.push((group_name, m.as_str().to_string()));
                 }
             }
@@ -234,11 +230,19 @@ impl Component for RegexPlayground {
                 }
             }
             // Scroll through matches.
-            KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Down
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 self.scroll = self.scroll.saturating_add(1);
                 Some(Action::Noop)
             }
-            KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Up
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 self.scroll = self.scroll.saturating_sub(1);
                 Some(Action::Noop)
             }
@@ -269,10 +273,8 @@ impl Component for RegexPlayground {
         let popup_width = ((area.width as u32 * 80 / 100) as u16).max(50);
         let popup_height = ((area.height as u32 * 80 / 100) as u16).max(16);
 
-        let vertical =
-            Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
-        let horizontal =
-            Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
+        let vertical = Layout::vertical([Constraint::Length(popup_height)]).flex(Flex::Center);
+        let horizontal = Layout::horizontal([Constraint::Length(popup_width)]).flex(Flex::Center);
         let [vert_area] = vertical.areas(area);
         let [popup_area] = horizontal.areas(vert_area);
 
@@ -295,7 +297,7 @@ impl Component for RegexPlayground {
         let chunks = Layout::vertical([
             Constraint::Length(1), // Regex input
             Constraint::Length(1), // Status / error
-            Constraint::Min(1),   // Match results
+            Constraint::Min(1),    // Match results
             Constraint::Length(1), // Footer
         ])
         .split(inner);
@@ -346,7 +348,10 @@ impl Component for RegexPlayground {
         // ── Status line ─────────────────────────────────────────────
         let status_line = if !self.error_msg.is_empty() {
             Line::from(Span::styled(
-                format!(" Error: {}", truncate_str(&self.error_msg, inner.width as usize - 10)),
+                format!(
+                    " Error: {}",
+                    truncate_str(&self.error_msg, inner.width as usize - 10)
+                ),
                 Style::default().fg(self.theme.error),
             ))
         } else if self.input.value().is_empty() {
