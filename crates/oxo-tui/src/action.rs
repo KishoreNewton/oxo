@@ -200,7 +200,7 @@ pub enum Action {
     SortColumn(usize),
 
     // ── Dedup ──────────────────────────────────────────────────────
-    /// Toggle smart deduplication of consecutive identical log lines.
+    /// Cycle dedup mode: Off → Exact (global identical) → Fuzzy (normalized similarity) → Off.
     ToggleDedup,
 
     // ── Bookmarks ──────────────────────────────────────────────────

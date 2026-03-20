@@ -1,1 +1,3 @@
-output/
+# Keep GIFs (tracked in git) but ignore raw video files
+output/*-raw.mp4
+output/*.webm

@@ -7,7 +7,7 @@
 //! - Line selection for detail/inspect view
 //! - Mouse scroll support
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -26,17 +26,90 @@ use crate::action::Action;
 use crate::components::Component;
 use crate::theme::Theme;
 
-/// A group of consecutive deduplicated log entries with identical content.
-#[allow(dead_code)]
+/// Deduplication mode — cycles Off → Exact → Fuzzy → Off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DedupMode {
+    /// No deduplication.
+    Off,
+    /// Group all entries with identical `.line` content (global, not just consecutive).
+    Exact,
+    /// Normalize lines by stripping variable tokens (UUIDs, IPs, timestamps,
+    /// hex strings, numbers, request IDs) then group by normalized form.
+    Fuzzy,
+}
+
+impl DedupMode {
+    /// Cycle to the next mode.
+    fn next(self) -> Self {
+        match self {
+            Self::Off => Self::Exact,
+            Self::Exact => Self::Fuzzy,
+            Self::Fuzzy => Self::Off,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Off => "",
+            Self::Exact => "DEDUP:EXACT",
+            Self::Fuzzy => "DEDUP:FUZZY",
+        }
+    }
+}
+
+/// A group of deduplicated log entries.
 struct DedupGroup {
-    /// Index of the representative entry in the entries buffer.
+    /// Index of the representative (most recent) entry in the entries buffer.
     entry_idx: usize,
-    /// Number of consecutive identical entries in this group.
+    /// All entry indices belonging to this group (used for expansion).
+    #[allow(dead_code)]
+    member_indices: Vec<usize>,
+    /// Number of entries in this group.
     count: usize,
     /// Timestamp of the first entry in the group.
     first_timestamp: DateTime<Utc>,
     /// Timestamp of the last entry in the group.
     last_timestamp: DateTime<Utc>,
+}
+
+/// Lazy-compiled regexes for fuzzy normalization.
+struct NormPatterns {
+    uuid: Regex,
+    ipv4: Regex,
+    hex_token: Regex,
+    iso_timestamp: Regex,
+    duration: Regex,
+    number: Regex,
+}
+
+impl NormPatterns {
+    fn new() -> Self {
+        Self {
+            uuid: Regex::new(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            )
+            .unwrap(),
+            ipv4: Regex::new(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?\b").unwrap(),
+            hex_token: Regex::new(r"\b[0-9a-fA-F]{16,}\b").unwrap(),
+            iso_timestamp: Regex::new(
+                r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?",
+            )
+            .unwrap(),
+            duration: Regex::new(r"\b\d+(\.\d+)?\s*(ms|us|µs|ns|s|sec|min)\b").unwrap(),
+            number: Regex::new(r"\b\d{2,}\b").unwrap(),
+        }
+    }
+
+    /// Normalize a log line by replacing variable tokens with placeholders.
+    fn normalize(&self, line: &str) -> String {
+        let s = self.uuid.replace_all(line, "<UUID>");
+        let s = self.ipv4.replace_all(&s, "<IP>");
+        let s = self.hex_token.replace_all(&s, "<HEX>");
+        let s = self.iso_timestamp.replace_all(&s, "<TS>");
+        let s = self.duration.replace_all(&s, "<DUR>");
+        let s = self.number.replace_all(&s, "<N>");
+        s.into_owned()
+    }
 }
 
 /// Log viewer component state.
@@ -97,11 +170,14 @@ pub struct LogViewer {
     sort_column: Option<(usize, bool)>,
 
     // ── Deduplication ──────────────────────────────────────────────
-    /// Whether smart deduplication of consecutive identical lines is active.
-    dedup_enabled: bool,
+    /// Current dedup mode (Off / Exact / Fuzzy).
+    dedup_mode: DedupMode,
 
-    /// Groups of consecutive identical entries.
+    /// Groups of deduplicated entries.
     dedup_groups: Vec<DedupGroup>,
+
+    /// Lazy-compiled normalization patterns for fuzzy dedup.
+    norm_patterns: Option<NormPatterns>,
 
     // ── Bookmarks ──────────────────────────────────────────────────
     /// Set of bookmarked entry indices.
@@ -130,8 +206,9 @@ impl LogViewer {
             column_mode: false,
             discovered_columns: Vec::new(),
             sort_column: None,
-            dedup_enabled: false,
+            dedup_mode: DedupMode::Off,
             dedup_groups: Vec::new(),
+            norm_patterns: None,
             bookmarks: HashSet::new(),
         }
     }
@@ -164,7 +241,7 @@ impl LogViewer {
         self.grouped_entries = multiline::group_entries(&self.entries);
 
         // Rebuild dedup groups if dedup is active.
-        if self.dedup_enabled {
+        if self.dedup_mode != DedupMode::Off {
             self.rebuild_dedup_groups();
         }
 
@@ -628,50 +705,86 @@ impl LogViewer {
         // Sorting reorders entries, invalidating selection and dedup groups.
         self.selected_line = None;
         self.bookmarks.clear();
-        if self.dedup_enabled {
+        if self.dedup_mode != DedupMode::Off {
             self.rebuild_dedup_groups();
         }
     }
 
     // ── Dedup methods ───────────────────────────────────────────────
 
-    /// Rebuild dedup groups by scanning the entry buffer and grouping
-    /// consecutive entries with identical `.line` content.
+    /// Rebuild dedup groups based on the current dedup mode.
     fn rebuild_dedup_groups(&mut self) {
         self.dedup_groups.clear();
         if self.entries.is_empty() {
             return;
         }
 
-        let mut current = DedupGroup {
-            entry_idx: 0,
-            count: 1,
-            first_timestamp: self.entries[0].timestamp,
-            last_timestamp: self.entries[0].timestamp,
-        };
-
-        for i in 1..self.entries.len() {
-            if self.entries[i].line == self.entries[current.entry_idx].line {
-                current.count += 1;
-                current.last_timestamp = self.entries[i].timestamp;
-            } else {
-                self.dedup_groups.push(current);
-                current = DedupGroup {
-                    entry_idx: i,
-                    count: 1,
-                    first_timestamp: self.entries[i].timestamp,
-                    last_timestamp: self.entries[i].timestamp,
-                };
-            }
+        match self.dedup_mode {
+            DedupMode::Off => {}
+            DedupMode::Exact => self.build_exact_dedup_groups(),
+            DedupMode::Fuzzy => self.build_fuzzy_dedup_groups(),
         }
-        self.dedup_groups.push(current);
+
+        // Sort groups by the most recent entry timestamp (descending)
+        // so the viewer shows the most recently seen patterns first.
+        self.dedup_groups
+            .sort_by(|a, b| b.last_timestamp.cmp(&a.last_timestamp));
     }
 
-    /// Toggle smart deduplication on or off. Rebuilds groups when enabling.
+    /// Exact dedup: group all entries with identical `.line` content globally.
+    fn build_exact_dedup_groups(&mut self) {
+        let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, entry) in self.entries.iter().enumerate() {
+            groups.entry(entry.line.as_str()).or_default().push(i);
+        }
+
+        for (_line, indices) in groups {
+            let first_idx = indices[0];
+            let last_idx = *indices.last().unwrap();
+            self.dedup_groups.push(DedupGroup {
+                entry_idx: last_idx, // most recent as representative
+                member_indices: indices.clone(),
+                count: indices.len(),
+                first_timestamp: self.entries[first_idx].timestamp,
+                last_timestamp: self.entries[last_idx].timestamp,
+            });
+        }
+    }
+
+    /// Fuzzy dedup: normalize lines then group by normalized form.
+    fn build_fuzzy_dedup_groups(&mut self) {
+        // Lazily initialize normalization patterns.
+        if self.norm_patterns.is_none() {
+            self.norm_patterns = Some(NormPatterns::new());
+        }
+        let patterns = self.norm_patterns.as_ref().unwrap();
+
+        let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+        for (i, entry) in self.entries.iter().enumerate() {
+            let key = patterns.normalize(&entry.line);
+            groups.entry(key).or_default().push(i);
+        }
+
+        for (_key, indices) in groups {
+            let first_idx = indices[0];
+            let last_idx = *indices.last().unwrap();
+            self.dedup_groups.push(DedupGroup {
+                entry_idx: last_idx,
+                member_indices: indices.clone(),
+                count: indices.len(),
+                first_timestamp: self.entries[first_idx].timestamp,
+                last_timestamp: self.entries[last_idx].timestamp,
+            });
+        }
+    }
+
+    /// Cycle dedup mode: Off → Exact → Fuzzy → Off.
     pub fn toggle_dedup(&mut self) {
-        self.dedup_enabled = !self.dedup_enabled;
-        if self.dedup_enabled {
+        self.dedup_mode = self.dedup_mode.next();
+        if self.dedup_mode != DedupMode::Off {
             self.rebuild_dedup_groups();
+        } else {
+            self.dedup_groups.clear();
         }
     }
 
@@ -1052,8 +1165,15 @@ impl Component for LogViewer {
         if self.column_mode {
             title_parts.push("[COL]".to_string());
         }
-        if self.dedup_enabled {
-            title_parts.push("[DEDUP]".to_string());
+        if self.dedup_mode != DedupMode::Off {
+            let total = self.entries.len();
+            let groups = self.dedup_groups.len();
+            title_parts.push(format!(
+                "[{} {}→{}]",
+                self.dedup_mode.label(),
+                total,
+                groups
+            ));
         }
         if !self.bookmarks.is_empty() {
             title_parts.push(format!("[{}bm]", self.bookmarks.len()));
@@ -1082,30 +1202,48 @@ impl Component for LogViewer {
         let (start, end) = self.visible_range();
 
         // ── Dedup mode rendering ────────────────────────────────────
-        if self.dedup_enabled && !self.dedup_groups.is_empty() {
+        if self.dedup_mode != DedupMode::Off && !self.dedup_groups.is_empty() {
             let mut lines: Vec<Line> = Vec::new();
+            let total_groups = self.dedup_groups.len();
 
-            // Iterate dedup groups, but only show those that overlap the
-            // visible range.
-            for group in &self.dedup_groups {
-                let idx = group.entry_idx;
-                if idx < start {
-                    continue;
-                }
-                if idx >= end {
-                    break;
-                }
+            // Pagination: use scroll_offset to paginate through dedup groups.
+            let visible_end = total_groups.saturating_sub(self.scroll_offset);
+            let visible_start = visible_end.saturating_sub(inner_height);
 
-                let visible_i = idx - start;
-                let is_selected = self.selected_line == Some(visible_i);
-                let entry = &self.entries[idx];
+            for (gi, group) in self.dedup_groups[visible_start..visible_end]
+                .iter()
+                .enumerate()
+            {
+                let is_selected = self.selected_line == Some(gi);
+                let entry = &self.entries[group.entry_idx];
 
-                let mut line = self.format_entry_with_bookmark(entry, idx, is_selected);
+                let mut line = self.format_entry_with_bookmark(entry, group.entry_idx, is_selected);
+
                 if group.count > 1 {
+                    // Show count badge.
                     line.spans.push(Span::styled(
                         format!(" (x{})", group.count),
-                        self.theme.dimmed(),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
                     ));
+
+                    // For fuzzy mode, show time span if entries span > 1 second.
+                    if self.dedup_mode == DedupMode::Fuzzy {
+                        let span_secs = (group.last_timestamp - group.first_timestamp)
+                            .num_seconds()
+                            .abs();
+                        if span_secs > 0 {
+                            let span_str = if span_secs >= 3600 {
+                                format!(" over {}h", span_secs / 3600)
+                            } else if span_secs >= 60 {
+                                format!(" over {}m", span_secs / 60)
+                            } else {
+                                format!(" over {}s", span_secs)
+                            };
+                            line.spans.push(Span::styled(span_str, self.theme.dimmed()));
+                        }
+                    }
                 }
                 lines.push(line);
             }
@@ -1115,7 +1253,6 @@ impl Component for LogViewer {
                 paragraph = paragraph.wrap(Wrap { trim: false });
             }
             frame.render_widget(paragraph, area);
-            let _ = inner_height;
             return;
         }
 
@@ -1232,4 +1369,144 @@ fn highlight_matches<'a>(
     }
 
     spans
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn make_entry(line: &str, secs: i64) -> LogEntry {
+        LogEntry {
+            timestamp: DateTime::from_timestamp(secs, 0).unwrap(),
+            labels: BTreeMap::new(),
+            line: line.to_string(),
+            raw: None,
+        }
+    }
+
+    #[test]
+    fn dedup_mode_cycles() {
+        assert_eq!(DedupMode::Off.next(), DedupMode::Exact);
+        assert_eq!(DedupMode::Exact.next(), DedupMode::Fuzzy);
+        assert_eq!(DedupMode::Fuzzy.next(), DedupMode::Off);
+    }
+
+    #[test]
+    fn exact_dedup_groups_identical_lines() {
+        let theme = Theme::default();
+        let mut viewer = LogViewer::new(theme);
+        let entries: VecDeque<LogEntry> = vec![
+            make_entry("error: connection refused", 1000),
+            make_entry("info: request handled", 1001),
+            make_entry("error: connection refused", 1002),
+            make_entry("info: request handled", 1003),
+            make_entry("error: connection refused", 1004),
+        ]
+        .into_iter()
+        .collect();
+
+        viewer.update_entries(&entries);
+        viewer.dedup_mode = DedupMode::Exact;
+        viewer.rebuild_dedup_groups();
+
+        assert_eq!(viewer.dedup_groups.len(), 2);
+
+        // Find the group for "error: connection refused"
+        let error_group = viewer
+            .dedup_groups
+            .iter()
+            .find(|g| viewer.entries[g.entry_idx].line == "error: connection refused")
+            .unwrap();
+        assert_eq!(error_group.count, 3);
+
+        let info_group = viewer
+            .dedup_groups
+            .iter()
+            .find(|g| viewer.entries[g.entry_idx].line == "info: request handled")
+            .unwrap();
+        assert_eq!(info_group.count, 2);
+    }
+
+    #[test]
+    fn fuzzy_dedup_groups_similar_lines() {
+        let theme = Theme::default();
+        let mut viewer = LogViewer::new(theme);
+        let entries: VecDeque<LogEntry> = vec![
+            make_entry("error: connection to 10.0.0.1:5432 refused", 1000),
+            make_entry("error: connection to 10.0.0.2:5432 refused", 1001),
+            make_entry("info: something else", 1002),
+            make_entry("error: connection to 192.168.1.1:5432 refused", 1003),
+        ]
+        .into_iter()
+        .collect();
+
+        viewer.update_entries(&entries);
+        viewer.dedup_mode = DedupMode::Fuzzy;
+        viewer.rebuild_dedup_groups();
+
+        // The three "error: connection to <IP> refused" lines should group
+        // together since IPs get normalized to <IP>.
+        assert_eq!(viewer.dedup_groups.len(), 2);
+
+        let error_group = viewer
+            .dedup_groups
+            .iter()
+            .find(|g| g.count == 3)
+            .expect("should have a group of 3 similar error lines");
+        assert_eq!(error_group.first_timestamp.timestamp(), 1000);
+        assert_eq!(error_group.last_timestamp.timestamp(), 1003);
+    }
+
+    #[test]
+    fn fuzzy_normalizer_patterns() {
+        let p = NormPatterns::new();
+
+        // UUIDs
+        assert_eq!(
+            p.normalize("req 550e8400-e29b-41d4-a716-446655440000 failed"),
+            "req <UUID> failed"
+        );
+
+        // IPs
+        assert_eq!(
+            p.normalize("connect to 192.168.1.100:3306"),
+            "connect to <IP>"
+        );
+
+        // ISO timestamps
+        assert_eq!(
+            p.normalize("at 2024-01-15T10:30:00Z something"),
+            "at <TS> something"
+        );
+
+        // Durations
+        assert_eq!(p.normalize("took 432ms to complete"), "took <DUR> to complete");
+
+        // Numbers (2+ digits)
+        assert_eq!(p.normalize("status 500 returned"), "status <N> returned");
+
+        // Long hex tokens
+        assert_eq!(
+            p.normalize("trace_id=abcdef0123456789 span"),
+            "trace_id=<HEX> span"
+        );
+    }
+
+    #[test]
+    fn toggle_dedup_cycles_through_modes() {
+        let theme = Theme::default();
+        let mut viewer = LogViewer::new(theme);
+        assert_eq!(viewer.dedup_mode, DedupMode::Off);
+
+        viewer.toggle_dedup();
+        assert_eq!(viewer.dedup_mode, DedupMode::Exact);
+
+        viewer.toggle_dedup();
+        assert_eq!(viewer.dedup_mode, DedupMode::Fuzzy);
+
+        viewer.toggle_dedup();
+        assert_eq!(viewer.dedup_mode, DedupMode::Off);
+        assert!(viewer.dedup_groups.is_empty());
+    }
 }

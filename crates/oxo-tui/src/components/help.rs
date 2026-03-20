@@ -108,7 +108,7 @@ impl Component for HelpOverlay {
             Line::from("  A             Mute/unmute alerts"),
             Line::from("  i             Analytics dashboard"),
             Line::from("  c             Column/table mode"),
-            Line::from("  D             Smart dedup"),
+            Line::from("  D             Dedup (Off→Exact→Fuzzy)"),
             Line::from("  m             Toggle bookmark"),
             Line::from("  '             Jump to next bookmark"),
             Line::from("  W             Trace waterfall"),
