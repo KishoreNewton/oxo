@@ -142,9 +142,9 @@ impl Component for StatusBar {
 
         // Pad the line to fill the full width.
         let left_len: usize = left.spans.iter().map(|s| s.content.len()).sum();
-        let padding = area.width as usize
-            - left_len.min(area.width as usize)
-            - right_text.len().min(area.width as usize);
+        let padding = (area.width as usize)
+            .saturating_sub(left_len)
+            .saturating_sub(right_text.len());
 
         let line = Line::from(
             left.spans

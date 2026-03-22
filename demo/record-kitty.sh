@@ -20,11 +20,31 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/output"
 
 # ── Recording config ────────────────────────────────────────────
-REC_MONITOR="HDMI-A-4"
-MON_X=-1920
-MON_Y=-768
-MON_W=1360
-MON_H=768
+# Auto-detect recording monitor (smallest resolution, likely dedicated)
+REC_MONITOR=$(hyprctl monitors -j 2>/dev/null | python3 -c "
+import sys, json
+monitors = json.load(sys.stdin)
+# Pick the monitor with the smallest total pixel count
+best = min(monitors, key=lambda m: m['width'] * m['height'])
+print(best['name'])
+" 2>/dev/null)
+REC_MONITOR="${REC_MONITOR:-HDMI-A-2}"
+
+# Read monitor geometry dynamically
+eval "$(hyprctl monitors -j 2>/dev/null | python3 -c "
+import sys, json
+for m in json.load(sys.stdin):
+    if m['name'] == '${REC_MONITOR}':
+        print(f'MON_X={m[\"x\"]}')
+        print(f'MON_Y={m[\"y\"]}')
+        print(f'MON_W={m[\"width\"]}')
+        print(f'MON_H={m[\"height\"]}')
+        break
+" 2>/dev/null)"
+MON_X="${MON_X:--1920}"
+MON_Y="${MON_Y:--768}"
+MON_W="${MON_W:-1360}"
+MON_H="${MON_H:-768}"
 
 TERM_W=1100
 TERM_H=680
@@ -84,6 +104,7 @@ start_kitty() {
   info "Launching Kitty ${TERM_W}x${TERM_H} font=${FONT_SIZE}"
   kitty \
     --listen-on "unix:$SOCK" \
+    --override "allow_remote_control=yes" \
     --override "font_size=${FONT_SIZE}" \
     --override "remember_window_size=no" \
     --override "initial_window_width=${TERM_W}" \
@@ -95,12 +116,10 @@ start_kitty() {
 
   sleep 2
 
-  # Move to recording monitor
+  # Move to recording monitor — float first, then move to monitor, resize, center
   hyprctl dispatch "focuswindow title:${WINDOW_TITLE}" 2>/dev/null; sleep 0.3
-  hyprctl dispatch "movetoworkspace 99" 2>/dev/null; sleep 0.3
-  hyprctl dispatch "workspace 99" 2>/dev/null; sleep 0.3
-  hyprctl dispatch "movecurrentworkspacetomonitor ${REC_MONITOR}" 2>/dev/null; sleep 0.3
-  hyprctl dispatch "setfloating" 2>/dev/null; sleep 0.3
+  hyprctl dispatch setfloating 2>/dev/null; sleep 0.2
+  hyprctl dispatch "movewindow mon:${REC_MONITOR}" 2>/dev/null; sleep 0.3
   hyprctl dispatch "resizeactive exact ${TERM_W} ${TERM_H}" 2>/dev/null; sleep 0.3
 
   # Center on monitor
@@ -127,6 +146,14 @@ for c in clients:
     fail "Could not find Kitty window geometry"
   fi
   info "Window geometry: $GEOMETRY"
+
+  # Inject PATH so the kitty shell can find oxo
+  send "export PATH=\"$PROJECT_ROOT/target/release:\$PATH\""
+  send_enter
+  sleep 0.3
+  send "clear"
+  send_enter
+  sleep 0.5
 }
 
 start_recording() {
@@ -494,26 +521,33 @@ scenario_08_alerting() {
   start_kitty
 
   send "clear"; send_enter; sleep 0.5
-  start_recording "$raw" 34 &
+
+  # Let oxo accumulate data before recording
+  type_slow "oxo" 60; send_enter
+  sleep 8
+
+  start_recording "$raw" 36 &
   local rec_pid=$!
   sleep 1
 
-  type_slow "# Built-in alerting — no Prometheus needed" 25
-  send_enter; sleep 0.6
-  type_slow "oxo" 60; send_enter
-  sleep 5
+  # Show live log stream
+  sleep 3
 
-  # Alert panel
-  send "a"; sleep 4
-  send "a"; sleep 1
-
-  # Mute/unmute
-  send "A"; sleep 2
-  send "A"; sleep 1
-
-  # Health dashboard
-  send "H"; sleep 4
+  # Health dashboard — shows connection status, throughput, backend info
+  send "H"; sleep 6
   send "H"; sleep 1
+
+  # Live metrics dashboard — shows rates, latencies, top endpoints
+  send "L"; sleep 6
+  send "L"; sleep 1
+
+  # Stats overlay
+  send "s"; sleep 5
+  send "s"; sleep 1
+
+  # Alert panel (shows empty state, which is valid)
+  send "a"; sleep 3
+  send "a"; sleep 1
 
   # Live dashboard
   send "L"; sleep 4

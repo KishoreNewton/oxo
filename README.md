@@ -40,9 +40,9 @@ Parse JSON logs into columns, expand detail panels, toggle timestamps and line w
   <img src="demo/output/07-structured-column.gif" alt="Structured logs and column mode" width="800" />
 </p>
 
-### Built-in Alerting
+### Health & Live Metrics
 
-Alert panel, mute/unmute rules, health dashboard, and live metrics — all without leaving the terminal.
+Health dashboard, live metrics, statistics overlay, and alert panel — all without leaving the terminal.
 
 <p align="center">
   <img src="demo/output/08-alerting.gif" alt="Alerting and health dashboard" width="800" />
